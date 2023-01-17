@@ -1,6 +1,5 @@
 import logging
 
-import pandas as pd
 from entsoe import EntsoePandasClient
 
 from _helpers import configure_logging, get_start_and_end_of_year, get_empty_generation_df

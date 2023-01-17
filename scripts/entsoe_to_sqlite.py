@@ -4,12 +4,8 @@ import shutil
 import sqlite3
 from operator import xor
 from sqlite3 import Connection
-from typing import Optional
 
 import pandas as pd
-from sqlalchemy import select
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import subqueryload, Session
 
 from _helpers import configure_logging, bus_included
 

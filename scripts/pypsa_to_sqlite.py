@@ -8,8 +8,6 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from pypsa import Network
-from sqlalchemy import MetaData, event, select, insert
-from sqlalchemy.orm import Session
 
 from _helpers import configure_logging
 logger = logging.getLogger(__name__)

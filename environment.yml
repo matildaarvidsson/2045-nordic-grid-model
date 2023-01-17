@@ -1,0 +1,19 @@
+name: open-source-model
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+- python=3.9  # For PSS/E
+- pip
+
+- pypsa>=0.21.3
+
+- snakemake-minimal
+- pandas
+- matplotlib
+- entsoe-py
+
+# optional, only if you want to export a Google Earth export to an image (kml_to_image.py)
+- geopandas
+- fiona
+- contextily

@@ -1,0 +1,22 @@
+digraph snakemake_dag {
+    graph[bgcolor=white, margin=0];
+    node[shape=box, style=rounded, fontname=sans,                 fontsize=10, penwidth=2];
+    edge[penwidth=2, color=grey];
+        0[label = "PyPSA-Eur", color = "0.53 0.6 0.85", style="rounded"];
+
+        1[label = "GridKit (ENTSO-E)", color = "0.40 0.6 0.85", style="rounded"];
+        2[label = "powerplantmatching", color = "0.33 0.6 0.85", style="rounded"];
+        3[label = "Open Power System Data (OPSD)", color = "0.07 0.6 0.85", style="rounded"];
+        4[label = "Weather data", color = "0.47 0.6 0.85", style="rounded"];
+
+//        6[label = "Database", color = "0.00 0.6 0.85", style="rounded"];
+//        7[label = "PSS/E", color = "0.13 0.6 0.85", style="rounded"];
+//        8[label = "", color = "0.60 0.6 0.85", style="rounded"];
+//        9[label = "", color = "0.20 0.6 0.85", style="rounded"];
+
+        1->0;
+        2->0;
+        3->0;
+        4->0;
+
+}

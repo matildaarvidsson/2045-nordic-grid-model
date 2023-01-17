@@ -1,0 +1,157 @@
+run:
+  name: "" # use this to keep track of runs with different settings
+
+# any of:
+# - pypsa (output from PyPSA-Eur: https://pypsa-eur.readthedocs.io/en/latest/)
+source: pypsa
+
+logging:
+  level: INFO
+  format: '%(levelname)s:%(name)s:%(message)s'
+
+countries: ['DK', 'FI', 'NO', 'SE']
+#countries: ['SE']
+#countries: ['NO']
+
+year: 2015
+
+M_base: 100 # power base for p.u. calculations
+
+generator_p_min: 5  # MW
+
+snapshots:  # either percentage or snapshot is required, normally only percentage is specified
+  high:
+    percentage: null # percentage on the load duration curve
+    snapshot: '2015-02-14 16:00:00' # UTC
+  low:
+    percentage: null
+    snapshot: '2015-07-03 19:00:00' # UTC
+
+build_network:
+  exclude_under_construction: False
+  supress_psse_output: True
+  slack_buses: ["6591"]  # centralized nuclear plant
+
+database:
+  buses:
+    - v_nom
+    - symbol
+    - under_construction
+    - x
+    - y
+    - carrier
+    - country
+    - in_synchronous_network
+  generators:
+    - bus
+    - name
+    - type
+    - p_nom_min
+    - p_nom
+    - p_nom_max
+    - p_max_pu
+    - p_min_pu
+    - p_set
+    - q_set
+  storage_units:
+    - bus
+    - type
+    - p_nom
+    - p_nom_max
+    - p_max_pu
+    - p_min_pu
+    - p_set
+    - q_set
+  loads:
+    - bus
+    - p_set
+    - q_set
+  shunt_impedances:
+    - bus
+    - g_pu
+    - b_pu
+  lines:
+    - bus0
+    - bus1
+    - num_parallel
+    - length
+    - under_construction
+    - s_max_pu
+    - s_nom
+    - x_pu
+    - r_pu
+    - g_pu
+    - b_pu
+  links:
+    - bus0
+    - bus1
+    - length
+    - under_construction
+    - p_nom
+    - p_set
+  transformers:
+    - bus0
+    - bus1
+    - s_nom
+    - x_pu
+    - r_pu
+    - g_pu
+    - b_pu
+  external_links:
+    - bus
+    - bus_outside
+    - link
+    - p_set
+    - q_set
+
+generation:
+  pypsa_map:
+    PHS: hydro
+    hydro: hydro
+    ror: hydro
+    nuclear: nuclear
+#    CCGT: other
+#    biomass: other
+#    coal: other
+#    OCGT: other
+#    oil: other
+#    lignite: other
+    onwind: wind-onshore
+    offwind-dc: wind-offshore
+    solar: solar
+    offwind-ac: wind-offshore
+
+  entsoe_map:
+#    Fossil Peat: other
+    Nuclear: nuclear
+#    Fossil Hard coal: other
+    Wind Onshore: wind-onshore
+#    Fossil Brown coal/Lignite: other
+    Geothermal: other
+    Hydro Run-of-river and poundage: hydro
+    Hydro Water Reservoir: hydro
+    Wind Offshore: wind-offshore
+    Hydro Pumped Storage: hydro
+#    Other renewable: other
+    Solar: solar
+#    Fossil Oil shale: other
+#    Waste: other
+#    Fossil Gas: other
+#    Fossil Coal-derived gas: other
+#    Fossil Oil: other
+#    Marine: other
+#    Other: other
+#    Biomass: other
+
+# https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html#_authentication_and_authorisation
+entsoe:
+  security_token: fe5dbb25-46fd-4a4b-a19c-d3d0772e00d5
+  country_map:
+    DK: DK_2  # Only the Nordics part of denmark
+
+external_links: # make sure each connection is there only once -> so if DK->NO is defined, dont define NO->DK also
+  'FI': ['EE', 'NO', 'RU', 'SE', 'SE_3']  # add SE3 area here for DC-link data
+  'NO': ['DK', 'DE', 'NL', 'GB']
+  'SE': ['DK', 'DE', 'LT', 'PL']
+
+  'DK': ['DE']  # DK last because only included partially. DK-SE and DK-NL not included -> not external

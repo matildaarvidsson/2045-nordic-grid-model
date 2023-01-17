@@ -1,0 +1,59 @@
+digraph snakemake_dag {
+    graph[bgcolor=white, margin=0];
+    node[shape=box, style=rounded, fontname=sans,                 fontsize=10, penwidth=2];
+    edge[penwidth=2, color=grey];
+        0[label = "add_electricity", color = "0.29 0.6 0.85", style="rounded"];
+        1[label = "build_renewable_profiles\ntechnology: onwind", color = "0.62 0.6 0.85", style="rounded,dashed"];
+        2[label = "base_network", color = "0.00 0.6 0.85", style="rounded,dashed"];
+        3[label = "build_shapes", color = "0.57 0.6 0.85", style="rounded,dashed"];
+        4[label = "retrieve_databundle", color = "0.02 0.6 0.85", style="rounded,dashed"];
+        5[label = "build_bus_regions", color = "0.50 0.6 0.85", style="rounded,dashed"];
+        6[label = "build_renewable_profiles\ntechnology: offwind-ac", color = "0.62 0.6 0.85", style="rounded,dashed"];
+        7[label = "build_ship_raster", color = "0.10 0.6 0.85", style="rounded,dashed"];
+        8[label = "retrieve_ship_raster", color = "0.38 0.6 0.85", style="rounded,dashed"];
+        9[label = "build_renewable_profiles\ntechnology: offwind-dc", color = "0.62 0.6 0.85", style="rounded,dashed"];
+        10[label = "build_renewable_profiles\ntechnology: solar", color = "0.62 0.6 0.85", style="rounded,dashed"];
+        11[label = "build_hydro_profile", color = "0.36 0.6 0.85", style="rounded,dashed"];
+        12[label = "retrieve_cost_data", color = "0.14 0.6 0.85", style="rounded,dashed"];
+        13[label = "build_powerplants", color = "0.52 0.6 0.85", style="rounded,dashed"];
+        14[label = "build_load_data", color = "0.21 0.6 0.85", style="rounded,dashed"];
+        15[label = "retrieve_load_data", color = "0.17 0.6 0.85", style="rounded,dashed"];
+        1 -> 0
+        6 -> 0
+        9 -> 0
+        10 -> 0
+        11 -> 0
+        2 -> 0
+        12 -> 0
+        5 -> 0
+        13 -> 0
+        4 -> 0
+        14 -> 0
+        3 -> 0
+        2 -> 1
+        4 -> 1
+        3 -> 1
+        5 -> 1
+        3 -> 2
+        4 -> 3
+        3 -> 5
+        2 -> 5
+        2 -> 6
+        4 -> 6
+        7 -> 6
+        3 -> 6
+        5 -> 6
+        8 -> 7
+        2 -> 9
+        4 -> 9
+        7 -> 9
+        3 -> 9
+        5 -> 9
+        2 -> 10
+        4 -> 10
+        3 -> 10
+        5 -> 10
+        3 -> 11
+        2 -> 13
+        15 -> 14
+}

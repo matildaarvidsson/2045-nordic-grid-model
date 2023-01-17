@@ -1,0 +1,39 @@
+digraph snakemake_dag {
+    graph[bgcolor=white, margin=0];
+    node[shape=box, style=rounded, fontname=sans, fontsize=10, penwidth=2];
+    edge[penwidth=2, color=grey, dir=none];
+//    0[label = "build_and_validate_all", color = "0.44 0.6 0.85", style="rounded"];
+
+//     5624[color = "0.33 0.6 0.85", style="rounded"];
+    5624[pos="0,10!"];
+    5673[pos="0,10!"];
+    6311[];
+    6365[];
+    6586[];
+    6589[];
+    6398[];
+    6618[];
+    6348[];
+    6416[];
+    6343[];
+    6398[];
+    5847[];
+
+    6300[color = "0.33 0.6 0.85"];
+    6339[color = "0.33 0.6 0.85"];
+    6366[color = "0.33 0.6 0.85"];
+    7430[color = "0.33 0.6 0.85"];
+
+    5624->5847;
+    5673->7430;
+    6300->6348;
+    6311->6416;
+    6311->6416;
+    6339->6343;
+    6365->6398;
+    6365->6366;
+    6366->6398;
+    6366->6398;
+    6586->6618;
+    6589->6618;
+}

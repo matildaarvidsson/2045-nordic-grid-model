@@ -1,0 +1,24 @@
+digraph snakemake_dag {
+    graph[bgcolor=white, margin=0];
+    node[shape=box, style=rounded, fontname=sans,                 fontsize=10, penwidth=2];
+    edge[penwidth=2, color=grey];
+        1[label = "Validate Database", color = "0.40 0.6 0.85", style="rounded"];
+        2[label = "Build database (external links)", color = "0.33 0.6 0.85", style="rounded"];
+        3[label = "Retrieve cross-border flow", color = "0.07 0.6 0.85", style="rounded,dashed"];
+        4[label = "Snapshots", color = "0.47 0.6 0.85", style="rounded,dashed"];
+        5[label = "Build database (PyPSA)", color = "0.53 0.6 0.85", style="rounded"];
+        6[label = "Retrieve installed capacity", color = "0.00 0.6 0.85", style="rounded,dashed"];
+        7[label = "Retrieve actual generation\ncase: high", color = "0.13 0.6 0.85", style="rounded,dashed"];
+        8[label = "Build PSS/E", color = "0.60 0.6 0.85", style="rounded"];
+        9[label = "Validate PSS/E", color = "0.20 0.6 0.85", style="rounded"];
+        2 -> 1
+        6 -> 1
+        7 -> 1
+        3 -> 2
+        4 -> 2
+        5 -> 2
+        4 -> 5
+        4 -> 7
+        2 -> 8
+        8 -> 9
+}

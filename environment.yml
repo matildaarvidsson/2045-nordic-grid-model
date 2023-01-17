@@ -1,4 +1,4 @@
-name: open-source-model
+name: dnv-nordics-model
 channels:
   - conda-forge
   - bioconda

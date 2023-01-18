@@ -7,10 +7,10 @@ dependencies:
 - pip
 
 - pypsa>=0.21.3
-
 - snakemake-minimal
 - pandas
 - matplotlib
+- xlsxwriter
 - entsoe-py
 
 # optional, only if you want to export a Google Earth export to an image (kml_to_image.py)

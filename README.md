@@ -39,9 +39,8 @@ The python package requirements are curated in the
 file. The environment can be installed and activated using
 
 ``` bash
-.../pypsa-eur % conda env create -f envs/environment.yaml
-
-.../pypsa-eur % conda activate pypsa-eur
+conda env create -f envs/environment.yaml
+conda activate pypsa-eur
 ```
 
 Note that activation is local to the currently open shell! After opening
@@ -69,7 +68,7 @@ More details on the configuration options are in the [PyPSA-Eur documentation](h
 Before first use, create a `config.yaml` by copying the DNV config example.
 
 ``` bash
-.../pypsa-eur % cp config.dnv.yaml config.yaml
+cp config.dnv.yaml config.yaml
 ```
 
 ## Usage
@@ -99,9 +98,8 @@ git clone https://github.com/niekbr/dnv-nordics-model.git
 Similar to PyPSA-Eur, create a conda environment, which automatically installs dependencies.
 
 ``` bash
-.../pypsa-eur % conda env create -f envs/environment.yaml
-
-.../pypsa-eur % conda activate dnv-nordics-model
+conda env create -f envs/environment.yaml
+conda activate dnv-nordics-model
 ```
 
 ### Integration with PSS/E

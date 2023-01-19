@@ -10,7 +10,7 @@ rule build_and_validate_all:
     input:
         expand("validation/"+RDIR+"{case}/installed_generation_capacity.xlsx", case=CASES),    # validate_database
         expand("psse/"+RDIR+"{case}/nordics_{case}.sav", case=CASES),                          # build_psse_network
-        expand("validation/"+RDIR+"{case}/psse_validation_report.xlsx", case=CASES),         # validate_psse
+        expand("validation/"+RDIR+"{case}/psse_cross_border_flow.xlsx", case=CASES),           # validate_psse
 
 rule build_psse_network:
     name: "Build PSS/E"
@@ -42,10 +42,10 @@ rule validate_database:
 rule validate_psse:
     name: "Validate PSS/E"
     input:
-        database = "database/" + RDIR + "nordics_{case}.sqlite",
-        sav="psse/"+RDIR+"{case}/nordics_{case}.sav"
+        sav="psse/"+RDIR+"{case}/nordics_{case}.sav",
+        cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow_{case}.csv",
     output:
-        report="validation/"+RDIR+"{case}/psse_validation_report.xlsx"  # TODO: implement
+        cross_border_flow="validation/"+RDIR+"{case}/psse_cross_border_flow.xlsx"  # TODO: implement
     log:
         "logs/" + RDIR + "validate_psse_{case}.log",
     script:
@@ -73,10 +73,12 @@ rule retrieve_actual_generation:
 
 rule retrieve_cross_border_flow:
     name: "Retrieve cross-border flow"
+    input:
+        snapshots = "data/" + RDIR + "snapshots.csv",
     output:
-        cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv"
+        cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow_{case}.csv",
     log:
-        "logs/retrieve_cross_border_flow.log"
+        "logs/retrieve_cross_border_flow_{case}.log"
     script:
         "scripts/retrieve_cross_border_flow.py"
 
@@ -85,7 +87,7 @@ rule entsoe_to_sqlite:
         name: "Build database (ENTSO-E)"
         input:
             actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation_{case}.csv",
-            cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
+            cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow_{case}.csv",
             snapshots="data/" + RDIR + "snapshots.csv",
             database="database/raw/" + RDIR + "nordics_{case}_without_entsoe.sqlite",
         output:

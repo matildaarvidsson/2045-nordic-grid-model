@@ -2,7 +2,7 @@ import logging
 
 from entsoe import EntsoePandasClient
 
-from _helpers import configure_logging, get_start_and_end_of_year, get_empty_generation_df
+from _helpers import configure_logging, get_start_and_end_of_year, get_empty_generation_df, get_entsoe_client
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('retrieve_installed_capacity')
     configure_logging(snakemake)
 
-    client = EntsoePandasClient(api_key=snakemake.config["entsoe"]["security_token"])
+    client = get_entsoe_client(snakemake.config)
     capacity = get_empty_generation_df(snakemake.config["generation"])
     (start, end) = get_start_and_end_of_year(snakemake.config["year"])  # to get installed capacity at END of the year
     for bidding_zone in snakemake.config["bidding_zones"]:

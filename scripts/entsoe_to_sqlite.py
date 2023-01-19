@@ -12,9 +12,8 @@ from _helpers import configure_logging, bus_included, map_bidding_zone
 logger = logging.getLogger(__name__)
 
 
-def get_external_links(cross_border_flow: pd.Series, buses: pd.DataFrame, links: pd.DataFrame, config: dict) -> dict[str, tuple]:
-    external_links = {k: [] for k in cross_border_flow.index.values.tolist()}
-
+def get_external_links(cross_border_flow: pd.DataFrame, buses: pd.DataFrame, links: pd.DataFrame, config: dict) -> dict[tuple, list[tuple]]:
+    external_links = {}
     for link_id, link in links.iterrows():
         # external connection added as p-load. Multiple links get aggregated.
         # xor: one of buses is in nordics, one of buses is outside nordics
@@ -29,25 +28,29 @@ def get_external_links(cross_border_flow: pd.Series, buses: pd.DataFrame, links:
             inside_bus = bus0 if bus0_included else bus1
             outside_bus = bus1 if bus0_included else bus0
 
-            link_name = inside_bus.bidding_zone + '-' + outside_bus.bidding_zone
+            link_key = (inside_bus.bidding_zone, outside_bus.bidding_zone)
 
-            if link_name in external_links:
-                external_links[link_name].append(
+            if inside_bus.bidding_zone in cross_border_flow.index and outside_bus.bidding_zone in cross_border_flow.columns:
+                if link_key not in external_links:
+                    external_links[link_key] = []
+
+                external_links[link_key].append(
                     (inside_bus.name, outside_bus.name)
                 )
+
     return external_links
 
 
-def insert_external_links(c: Connection, external_links: dict[str, tuple], external_flow: pd.Series):
+def insert_external_links(c: Connection, external_links: dict[str, tuple], external_flow: pd.DataFrame):
     df = pd.DataFrame(columns=["bus", "bus_outside", "link", "p_set", "q_set"])
     for link in external_links:
         num_connections = len(external_links[link])
         if num_connections > 0:
-            flow = external_flow.loc[link]
+            flow = external_flow.loc[link[0], link[1]]
             flow = 0 if math.isnan(flow) else flow
             flow_per_connection = flow / num_connections  # evenly distribute over multiple links
             for (bus0, bus1) in external_links[link]:
-                d = pd.DataFrame([dict(bus=bus0, bus_outside=bus1, link=link, p_set=flow_per_connection, q_set=0)])
+                d = pd.DataFrame([dict(bus=bus0, bus_outside=bus1, link='-'.join(link), p_set=flow_per_connection, q_set=0)])
                 df = pd.concat([df, d], ignore_index=True)
 
     df.index.names = ['ExternalLink']
@@ -74,20 +77,15 @@ if __name__ == "__main__":
     shutil.copy2(snakemake.input.database, snakemake.output.database)
     c = sqlite3.connect(snakemake.output.database)
 
-    snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
-    snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
-
     #
     # find and add external links
     #
     logger.info('Finding and adding interconnection links')
 
-    external_flows = pd.read_csv(snakemake.input.cross_border_flows, index_col=0)
-    external_flows.index = pd.to_datetime(external_flows.index)
-    cross_border_flow = external_flows.loc[snapshot].fillna(0)
+    cross_border_flow = pd.read_csv(snakemake.input.cross_border_flows, index_col=0)
 
     # !!!! Manual fix for DK_2 <=> DE !!!!
-    cross_border_flow.loc['DK_2-DE'] = cross_border_flow.loc['DK_2-DE_AT_LU'] + cross_border_flow.loc['DK_2-DE_LU']
+    cross_border_flow.loc['DK_2', 'DE'] = cross_border_flow.loc['DK_2', 'DE_AT_LU'] + cross_border_flow.loc['DK_2', 'DE_LU']
 
     buses = pd.read_sql('SELECT * FROM buses', c).set_index('Bus')
     links = pd.read_sql('SELECT * FROM links', c).set_index('Link')
@@ -106,7 +104,7 @@ if __name__ == "__main__":
     se_fi_links = links[(links["bidding_zone0"] == 'SE') & (links["bidding_zone1"] == "FI")]
     se_fi_p_nom = pd.to_numeric(se_fi_links["p_nom"], errors='coerce')
     se_fi_capacity = se_fi_p_nom.sum()
-    se_fi_flow = cross_border_flow["FI-SE_3"]
+    se_fi_flow = cross_border_flow.loc["FI", "SE_3"]
     links.loc[se_fi_links.index, "p_set"] = se_fi_p_nom / se_fi_capacity * se_fi_flow
     links[snakemake.config["database"]["links"]].to_sql('links', con=c, if_exists='replace')
 

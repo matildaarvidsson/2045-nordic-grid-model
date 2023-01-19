@@ -5,6 +5,8 @@ from typing import Tuple
 import pandas as pd
 import logging
 
+from entsoe import EntsoePandasClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -177,3 +179,11 @@ def map_bidding_zone(bidding_zone: str, config: dict) -> str:
 def all_combinations(list1: list, list2: list) -> list:
     l = [list(zip(each_permutation, list2)) for each_permutation in itertools.permutations(list1, len(list2))]
     return [item for sublist in l for item in sublist]  # flatten
+
+
+def get_entsoe_client(config: dict) -> EntsoePandasClient:
+    import requests_cache
+
+    requests_cache.install_cache('entsoe_api')
+    return EntsoePandasClient(api_key=config["entsoe"]["security_token"])
+

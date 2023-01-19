@@ -6,8 +6,7 @@ import numpy as np
 import pandas as pd
 from entsoe.exceptions import NoMatchingDataError, InvalidBusinessParameterError
 
-from _helpers import configure_logging, get_start_and_end_of_year, all_combinations
-from entsoe import EntsoePandasClient
+from _helpers import configure_logging, get_start_and_end_of_year, all_combinations, get_entsoe_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,41 +17,60 @@ if __name__ == "__main__":
         snakemake = mock_snakemake('retrieve_cross_border_flow')
     configure_logging(snakemake)
 
-    client = EntsoePandasClient(api_key=snakemake.config["entsoe"]["security_token"])
+    client = get_entsoe_client(snakemake.config)
 
-    year = snakemake.config["year"]
-    (start, end) = get_start_and_end_of_year(year)
-    date_range = pd.date_range(start=start, end=end, freq="H", tz=None)
+    # year = snakemake.config["year"]
+    # (start, end) = get_start_and_end_of_year(year)
+    # date_range = pd.date_range(start=start, end=end, freq="H", tz=None, name='datetime')
 
-    flows = pd.DataFrame(index=date_range)
-    flows.index.rename('datetime')
-    external_links = snakemake.config["external_links"]
-    for country_in_nordics in external_links:
-        for country_outside_nordics in external_links[country_in_nordics]:
-            index = country_in_nordics + "-" + country_outside_nordics
-            logger.info(f"Retrieving cross border flow {index} ({year})")
+    snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
+    snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
+
+    start = pd.Timestamp(snapshot, tz='UTC')
+    end = start + pd.DateOffset(hours=1)
+
+    flows = pd.DataFrame()
+    flows.index.name = 'country_from'
+    included_cross_border_flows = snakemake.config["cross_border_flows"]
+    for country_from in included_cross_border_flows:
+        for country_to in included_cross_border_flows[country_from]:
+            index = country_from + "-" + country_to
+            logger.info(f"Retrieving cross border flow {index}")
 
             # only possible to query country <=> country or zone <=> zone
-            if xor('_' in country_in_nordics, '_' in country_outside_nordics):
+            if xor('_' in country_from, '_' in country_to):
                 bidding_zone_combinations = all_combinations(
-                    snakemake.config["bidding_zones_in_country"].get(country_in_nordics, [country_in_nordics]),
-                    snakemake.config["bidding_zones_in_country"].get(country_outside_nordics, [country_outside_nordics]),
+                    snakemake.config["bidding_zones_in_country"].get(country_from, [country_from]),
+                    snakemake.config["bidding_zones_in_country"].get(country_to, [country_to]),
                 )
             else:
-                bidding_zone_combinations = [(country_in_nordics, country_outside_nordics)]
+                bidding_zone_combinations = [(country_from, country_to)]
 
-            flow = pd.Series(index=date_range, dtype='float64').fillna(0)
+            flow = 0
             exists = False
-            for bidding_zone_in_nordics, bidding_zone_outside_nordics in bidding_zone_combinations:
+            for bidding_zone_from, bidding_zone_to in bidding_zone_combinations:
                 try:
-                    flow_from_nordics = client.query_crossborder_flows(bidding_zone_in_nordics, bidding_zone_outside_nordics, start=start, end=end)
-                    flow_to_nordics = client.query_crossborder_flows(bidding_zone_outside_nordics, bidding_zone_in_nordics, start=start, end=end)
+                    flow_from_nordics = client.query_crossborder_flows(
+                        bidding_zone_from,
+                        bidding_zone_to,
+                        start=start,
+                        end=end
+                    ).loc[start]
+                    flow_to_nordics = client.query_crossborder_flows(
+                        bidding_zone_to,
+                        bidding_zone_from,
+                        start=start,
+                        end=end
+                    ).loc[start]
 
                     exists = True
 
                     flow += flow_from_nordics - flow_to_nordics
-                except (NoMatchingDataError, InvalidBusinessParameterError):
+                except InvalidBusinessParameterError:  # link really does not exist
+                    pass
+                except NoMatchingDataError:  # link has no data for this timestamp
+                    exists = True
                     pass
 
-            flows[index] = flow if exists else np.nan
+            flows.loc[country_from, country_to] = flow if exists else np.nan
     flows.to_csv(snakemake.output.cross_border_flows)

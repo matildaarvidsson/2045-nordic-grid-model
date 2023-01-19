@@ -9,13 +9,13 @@ from _helpers import configure_logging, bus_included, get_empty_generation_df
 logger = logging.getLogger(__name__)
 
 
-def get_generation_totals(column: str, c: Connection, config: dict) -> pd.DataFrame:
+def get_generation_totals(column: str, group_by: str, c: Connection, config: dict) -> pd.DataFrame:
     buses = pd.read_sql("SELECT * FROM buses", con=c).set_index('Bus')
     generators = pd.read_sql("SELECT * FROM generators", con=c).set_index('Generator')
     storage_units = pd.read_sql("SELECT * FROM storage_units", con=c).set_index('StorageUnit')
     generation_units = pd.concat([generators, storage_units])
 
-    generation_units["bidding_zone"] = generation_units["bus"].map(lambda bus: buses.loc[bus, "bidding_zone"])
+    generation_units[group_by] = generation_units["bus"].map(lambda bus: buses.loc[bus, group_by])
     generation_units["in_synchronous_network"] = generation_units["bus"].map(
         lambda bus: buses.loc[bus, "in_synchronous_network"]
     )
@@ -23,7 +23,7 @@ def get_generation_totals(column: str, c: Connection, config: dict) -> pd.DataFr
     # filter out not in nordics sync network
     generation_units = generation_units[generation_units["in_synchronous_network"] == True]
 
-    return generation_units.groupby(['bidding_zone', 'type'])[column].sum().unstack(level=0)
+    return generation_units.groupby([group_by, 'type'])[column].sum().unstack(level=0)
 
 
 def validate_generation_capacity(c: Connection, config: dict) -> None:
@@ -34,13 +34,13 @@ def validate_generation_capacity(c: Connection, config: dict) -> None:
     totals["entsoe"] = 0
 
     entsoe_capacity = pd.read_csv(snakemake.input.entsoe_capacities).set_index('type')
-    model_capacity = get_generation_totals('p_nom', c, config)
+    model_capacity = get_generation_totals('p_nom', 'country', c, config)
 
     with pd.ExcelWriter(snakemake.output.installed_generation_capacity, engine='xlsxwriter') as writer:
-        for bidding_zone in snakemake.config["bidding_zones"]:
+        for country in snakemake.config["countries"]:
             df = empty_df.copy()
-            df['model'] = model_capacity[bidding_zone]
-            df['entsoe'] = entsoe_capacity[bidding_zone]
+            df['model'] = model_capacity[country]
+            df['entsoe'] = entsoe_capacity[country]
             df.fillna(0, inplace=True)
 
             df.loc['total'] = df.sum(axis=0)
@@ -51,7 +51,7 @@ def validate_generation_capacity(c: Connection, config: dict) -> None:
             totals["model"] = totals["model"] + df["model"]
             totals["entsoe"] = totals["entsoe"] + df["entsoe"]
 
-            df.to_excel(writer, sheet_name=bidding_zone)
+            df.to_excel(writer, sheet_name=country)
 
         totals.loc['total'] = totals.sum(axis=0)
         totals['difference'] = totals['model'] - totals['entsoe']
@@ -75,13 +75,13 @@ def validate_actual_generation(c: Connection, config: dict) -> None:
     totals["entsoe"] = 0
 
     entsoe_generation = pd.read_csv(snakemake.input.entsoe_generation).set_index('type')
-    model_capacity = get_generation_totals('p_set', c, config)
+    model_capacity = get_generation_totals('p_set', 'country', c, config)
 
     with pd.ExcelWriter(snakemake.output.actual_generation, engine='xlsxwriter') as writer:
-        for bidding_zone in snakemake.config["bidding_zones"]:
+        for country in snakemake.config["countries"]:
             df = empty_df.copy()
-            df['model'] = model_capacity[bidding_zone]
-            df['entsoe'] = entsoe_generation[bidding_zone]
+            df['model'] = model_capacity[country]
+            df['entsoe'] = entsoe_generation[country]
             df.fillna(0, inplace=True)
 
             df.loc['total'] = df.sum(axis=0)
@@ -89,7 +89,7 @@ def validate_actual_generation(c: Connection, config: dict) -> None:
             df['difference'] = df['model'] - df['entsoe']
             df['percentage'] = df['model'] / df['entsoe']
 
-            df.to_excel(writer, sheet_name=bidding_zone)
+            df.to_excel(writer, sheet_name=country)
 
             totals["model"] = totals["model"] + df["model"]
             totals["entsoe"] = totals["entsoe"] + df["entsoe"]

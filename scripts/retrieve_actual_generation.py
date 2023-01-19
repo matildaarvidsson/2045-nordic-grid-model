@@ -3,7 +3,8 @@ import logging
 import pandas as pd
 from entsoe import EntsoePandasClient
 
-from _helpers import configure_logging, get_start_and_end_of_year, get_empty_generation_df, get_entsoe_client
+from _helpers import configure_logging, get_start_and_end_of_year, get_empty_generation_df, get_entsoe_client, \
+    all_areas_entsoe
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,9 @@ if __name__ == "__main__":
     snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
     snapshot = pd.Timestamp(snapshot, tz="UTC")
 
-    for bidding_zone in snakemake.config["bidding_zones"]:
+    for area, area_entsoe in all_areas_entsoe(snakemake.config):
         df = client.query_generation(
-            bidding_zone,
+            area_entsoe,
             start=snapshot,
             end=snapshot + pd.DateOffset(hours=1),
         )
@@ -36,11 +37,7 @@ if __name__ == "__main__":
         df["production_type_mapped"] = df["production_type"].map(
             lambda production_type: snakemake.config["generation"]["entsoe_map"].get(production_type, 'other')
         )
-        generation[bidding_zone] = df.groupby('production_type_mapped')['generation'].sum()
+        generation[area] = df.groupby('production_type_mapped')['generation'].sum()
 
     generation.sort_index(inplace=True)
     generation.to_csv(snakemake.output.actual_generation)
-
-
-
-

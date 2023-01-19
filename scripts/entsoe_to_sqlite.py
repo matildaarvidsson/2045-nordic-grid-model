@@ -7,7 +7,7 @@ from sqlite3 import Connection
 
 import pandas as pd
 
-from _helpers import configure_logging, bus_included, map_bidding_zone
+from _helpers import configure_logging, bus_included
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,9 @@ if __name__ == "__main__":
 
     cross_border_flow = pd.read_csv(snakemake.input.cross_border_flows, index_col=0)
 
-    # !!!! Manual fix for DK_2 <=> DE !!!!
+    # DE_AT_LU for date < october 2018
+    # DE_LU    for date > october 2018
+    # so manual fix required
     cross_border_flow.loc['DK_2', 'DE'] = cross_border_flow.loc['DK_2', 'DE_AT_LU'] + cross_border_flow.loc['DK_2', 'DE_LU']
 
     buses = pd.read_sql('SELECT * FROM buses', c).set_index('Bus')
@@ -101,7 +103,7 @@ if __name__ == "__main__":
     links["bidding_zone0"] = links["bus0"].map(lambda bus: buses.loc[bus, "bidding_zone"])
     links["bidding_zone1"] = links["bus1"].map(lambda bus: buses.loc[bus, "bidding_zone"])
 
-    se_fi_links = links[(links["bidding_zone0"] == 'SE') & (links["bidding_zone1"] == "FI")]
+    se_fi_links = links[(links["bidding_zone0"] == 'SE_3') & (links["bidding_zone1"] == "FI")]
     se_fi_p_nom = pd.to_numeric(se_fi_links["p_nom"], errors='coerce')
     se_fi_capacity = se_fi_p_nom.sum()
     se_fi_flow = cross_border_flow.loc["FI", "SE_3"]
@@ -129,11 +131,17 @@ if __name__ == "__main__":
     generation_units = all_generation_units[all_generation_units["in_synchronous_network"] == 1]
     generation_units = generation_units[generation_units["p_set"] >= snakemake.config["generator_p_min"]]
 
+    # actual generation in sweden is only available for the whole country
+    sweden = snakemake.config['bidding_zones_in_country']['SE']
+    generation_units.loc[generation_units['bidding_zone'].isin(sweden), 'bidding_zone'] = 'SE'
+
     # find scale factor per bidding_zone and generation type
     entsoe_generation = pd.read_csv(snakemake.input.actual_generation).set_index('type')
     model_generation = generation_units.groupby(['bidding_zone', 'type'])['p_set'].sum().unstack(level=0)
 
     scale_factors = entsoe_generation / model_generation
+    for bidding_zone_in_sweden in sweden:
+        scale_factors[bidding_zone_in_sweden] = scale_factors['SE']
 
     # scale p_set of all generation, including hydro which is in storage_units
     generators["p_set"] = generators.apply(lambda unit: scale_generation_unit(unit, scale_factors), axis=1)

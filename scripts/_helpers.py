@@ -172,13 +172,18 @@ def bus_included(bus: pd.Series, config: dict) -> bool:
     return True
 
 
-def map_bidding_zone(bidding_zone: str, config: dict) -> str:
-    return config["bidding_zone_map"].get(bidding_zone, bidding_zone)
-
-
 def all_combinations(list1: list, list2: list) -> list:
     l = [list(zip(each_permutation, list2)) for each_permutation in itertools.permutations(list1, len(list2))]
     return [item for sublist in l for item in sublist]  # flatten
+
+
+def all_areas_entsoe(config: dict):
+    # Each area will be a tuple of (database_name, entsoe_name)
+    # only different for DK where entsoe data is from DK_2 only
+    bidding_zones = [(bidding_zone, bidding_zone) for bidding_zone in config["bidding_zones"]]
+    countries = [(country, config["entsoe"]["country_map"].get(country, country)) for country in config["countries"]]
+
+    return sorted(set(bidding_zones) | set(countries))
 
 
 def get_entsoe_client(config: dict) -> EntsoePandasClient:
@@ -186,4 +191,3 @@ def get_entsoe_client(config: dict) -> EntsoePandasClient:
 
     requests_cache.install_cache('entsoe_api')
     return EntsoePandasClient(api_key=config["entsoe"]["security_token"])
-

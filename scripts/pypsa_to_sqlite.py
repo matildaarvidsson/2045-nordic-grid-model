@@ -4,8 +4,10 @@ import logging
 from cmath import sqrt, sinh, tanh
 from pprint import pprint
 
+import entsoe.geo.utils
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from matplotlib import pyplot as plt
 from pypsa import Network
 
@@ -29,11 +31,16 @@ def map_included_buses(n: Network, config: dict):
     n.buses["in_synchronous_network"] = n.buses.index.isin(included_buses)
 
 
-def set_bidding_zone(n: Network):
+def set_bidding_zone(n: Network, config: dict, snapshot: pd.Timestamp):
     n.buses['bidding_zone'] = n.buses['country']  # default to country
+    for country in config["bidding_zones_in_country"]:
+        buses = n.buses.copy()
+        buses = buses[buses['country'] == country]
+        buses_geo = gpd.GeoDataFrame(buses, geometry=gpd.points_from_xy(buses.x, buses.y, crs='EPSG:4326').to_crs(3857))
 
-    n.buses.loc[(n.buses['country'] == 'DK') & (n.buses['in_synchronous_network'] == 0), 'bidding_zone'] = 'DK_1'
-    n.buses.loc[(n.buses['country'] == 'DK') & (n.buses['in_synchronous_network'] == 1), 'bidding_zone'] = 'DK_2'
+        bidding_zones = entsoe.geo.utils.load_zones(config["bidding_zones_in_country"][country], snapshot.tz_convert(None)).to_crs(3857)
+        buses_with_bidding_zone = gpd.sjoin_nearest(buses_geo, bidding_zones)
+        n.buses.loc[buses_with_bidding_zone.index, "bidding_zone"] = buses_with_bidding_zone["index_right"]
 
 
 def set_line_impedance_from_linetypes(n: Network, config: dict):
@@ -79,7 +86,7 @@ def set_line_impedance_from_linetypes(n: Network, config: dict):
     n.lines["b_pu"] = n.lines["b"] * Z_base
 
 
-def set_dynamic_attributes(n: Network, components: dict[str, str], dynamic_attributes: dict[str, list[str]]):
+def set_dynamic_attributes(n: Network, components: dict[str, str], dynamic_attributes: dict[str, list[str]], snapshot: pd.Timestamp):
     for component in components:
         if component in dynamic_attributes:
             for attribute in dynamic_attributes[component]:
@@ -175,9 +182,10 @@ if __name__ == "__main__":
 
     snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
     snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
+    snapshot = pd.Timestamp(snapshot, tz='UTC')
 
     logger.info('Setting dynamic attributes for snapshot')
-    set_dynamic_attributes(n, components, dynamic_attributes)
+    set_dynamic_attributes(n, components, dynamic_attributes, snapshot)
 
     logger.info('Applying manual parameter corrections')
     apply_parameter_corrections(n, snakemake.config)
@@ -186,7 +194,7 @@ if __name__ == "__main__":
     map_included_buses(n, snakemake.config)
 
     logger.info('Adding bidding_zone info (for DK)')
-    set_bidding_zone(n)
+    set_bidding_zone(n, snakemake.config, snapshot)
     logger.info('Setting line impedance')
     set_line_impedance_from_linetypes(n, snakemake.config)
     logger.info('Setting generation p_set')

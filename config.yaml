@@ -9,10 +9,11 @@ logging:
   level: INFO
   format: '%(levelname)s:%(name)s:%(message)s'
 
-bidding_zones: ['DK_2', 'FI', 'NO', 'SE']
+countries: ['DK', 'FI', 'NO', 'SE']
+bidding_zones: ['DK_2', 'FI', 'NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5', 'SE_1', 'SE_2', 'SE_3', 'SE_4']
 
 bidding_zones_in_country:
-  'DK': ['DK_2']
+  'DK': ['DK_1', 'DK_2']
   'FI': ['FI']
   'NO': ['NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5']
   'SE': ['SE_1', 'SE_2', 'SE_3', 'SE_4']
@@ -133,13 +134,12 @@ generation:
 # https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html#_authentication_and_authorisation
 entsoe:
   security_token: fe5dbb25-46fd-4a4b-a19c-d3d0772e00d5
+  country_map:
+    'DK': 'DK_2'
 
-# make sure each connection is there only once -> so if DK->NO is defined, dont define NO->DK also
-external_links:
-  'FI': ['EE', 'NO', 'RU', 'SE', 'SE_3']  # add SE3 area here for DC-link data
-  'NO': ['DK_1', 'DE', 'NL', 'GB']
-  'SE': ['DK_1', 'DE', 'LT', 'PL']
-  'DK_2': ['DK_1', 'DE_AT_LU', 'DE_LU']
 
-bidding_zone_map:
-  SE_3: SE  # only DK has bidding zone info in the database at the moment
+#cross_border_flows:
+#  'FI': ['EE', 'NO_4', 'RU', 'SE_1', 'SE_3']
+#  'NO': ['DK_1', 'DE', 'NL', 'GB', 'SE']
+#  'SE': ['DK_1', 'DK_2', 'DE', 'LT', 'PL']
+#  'DK_2': ['DK_1', 'DE_AT_LU', 'DE_LU']

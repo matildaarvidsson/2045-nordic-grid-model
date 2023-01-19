@@ -16,6 +16,6 @@ dependencies:
 - addict
 
 # optional, only if you want to export a Google Earth export to an image (kml_to_image.py)
-- geopandas
-- fiona
-- contextily
+#- geopandas
+#- fiona
+#- contextily

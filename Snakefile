@@ -10,7 +10,7 @@ rule build_and_validate_all:
     input:
         expand("validation/"+RDIR+"{case}/installed_generation_capacity.xlsx", case=CASES),    # validate_database
         expand("psse/"+RDIR+"{case}/nordics_{case}.sav", case=CASES),                          # build_psse_network
-        # expand("validation/"+RDIR+"{case}/psse_validation_report.xlsx", case=CASES),         # validate_psse
+        expand("validation/"+RDIR+"{case}/psse_validation_report.xlsx", case=CASES),         # validate_psse
 
 rule build_psse_network:
     name: "Build PSS/E"
@@ -42,6 +42,7 @@ rule validate_database:
 rule validate_psse:
     name: "Validate PSS/E"
     input:
+        database = "database/" + RDIR + "nordics_{case}.sqlite",
         sav="psse/"+RDIR+"{case}/nordics_{case}.sav"
     output:
         report="validation/"+RDIR+"{case}/psse_validation_report.xlsx"  # TODO: implement

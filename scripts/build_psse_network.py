@@ -235,6 +235,21 @@ def disconnect_bus(bus: pd.Series):
         raise e
 
 
+def solve_newton_raphson() -> bool:
+    status_map = {
+        0: 'Met convergence tolerance',
+        1: 'Iteration limit exceeded',
+        2: 'Blown up',
+    }
+
+    psspy.fnsl([0,0,0,1,1,1,99,0])  # with flat start
+    n = psspy.iterat()
+    status_val = psspy.solved()
+    status = status_map.get(status_val, 'Other - see API documentation of psspy.solved()')
+    logger.info(f"{n} iterations used to solve: {status}")
+    return status_val == 0
+
+
 def first_free_index(a: list, b: list) -> int:
     for i in range(1, len(a) + len(b) + 2):
         if i not in a and i not in b:
@@ -405,6 +420,10 @@ if __name__ == "__main__":
             disconnect_bus(bus)
 
     psspy.updatebuslocdiagfile()
+
+    # run load flow
+    logger.info('Solving using Newton-Raphson (flat start)')
+    solve_newton_raphson()
 
     # save case and diagram to file
     logger.info('Saving ' + snakemake.output.sav)

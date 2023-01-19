@@ -7,15 +7,13 @@ import sqlite3
 
 import pandas as pd
 
-# from _database import connect_network_db, Bus, Line, ShuntImpedance, Load, StorageUnit, Generator, Transformer, Link, \
-#     ExternalLink
 from _helpers import configure_logging, bus_included
-
-logger = logging.getLogger(__name__)
 
 import psse35
 import psspy
 from psspy import _i, _f, _s
+
+logger = logging.getLogger(__name__)
 
 
 def add_area(id: int, name: str):
@@ -23,7 +21,10 @@ def add_area(id: int, name: str):
 
 
 def add_bus(bus: pd.Series, country_id: int, has_generation_units: bool, config: dict):
-    if bus.name in config['build_network']['slack_buses']:
+    if bus.carrier == 'DC' or bus.v_nom is None:
+        return
+
+    if bus.name in config["build_network"]["slack_buses"]:
         code = 3  # swing bus
     elif has_generation_units:
         code = 2  # generator bus
@@ -94,19 +95,19 @@ def add_load(load: pd.Series, bus: pd.Series, id: int, in_service: bool):
         raise e
 
 
-def add_external_link(external_link: pd.Series, bus: pd.Series,  id: int, in_service: bool):
+def add_external_link(external_link: pd.Series, bus: pd.Series, id: int, in_service: bool, area: int):
     try:
-        add_load_psse(int(external_link.bus), 'E'+str(id), external_link.p_set, external_link.q_set, external_link.link, in_service=in_service, scalable=False)
+        add_load_psse(int(external_link.bus), 'E'+str(id), external_link.p_set, external_link.q_set, external_link.link, in_service=in_service, scalable=False, area=area)
     except Exception as e:
         logger.debug(external_link)
         raise e
 
 
-def add_load_psse(bus_id: int, id: str, p_set: float, q_set: float, description: str = "", in_service: bool = True, scalable: bool = True):
+def add_load_psse(bus_id: int, id: str, p_set: float, q_set: float, description: str = "", in_service: bool = True, scalable: bool = True, area: int = _i):
     psspy.load_data_6(
         bus_id,
         id,
-        [int(in_service), _i, _i, _i, int(scalable), _i, _i],
+        [int(in_service), area, _i, _i, int(scalable), _i, _i],
         [p_set, q_set, _f, _f, _f, _f, _f, _f],
         description
     )
@@ -160,7 +161,6 @@ def add_link(link: pd.Series, bus0: pd.Series, bus1: pd.Series):
     # AC <-> DC: Multi-DC --> change topology to combine links so this does not happen
     if bus0.carrier == 'AC' and bus1.carrier == 'AC':
         enabled = ~link.under_construction and link.p_set != 0
-
         try:
             psspy.vsc_dc_line_data(
                 str(link.name),
@@ -254,6 +254,13 @@ if __name__ == "__main__":
     # Initialize PSSE
     psspy.psseinit()
 
+    if snakemake.config["build_network"]["supress_psse_output"]:
+        # this prevents PSS/E from spamming a lot of output
+        psspy.report_output(6, '', [])
+        psspy.progress_output(6, '', [])
+        psspy.alert_output(6, '', [])
+        psspy.prompt_output(6, '', [])
+
     # create empty .sav
     psspy.newcase_2([0, 1], snakemake.config["M_base"], 50.0, "Nordics grid", "By DNV (Niek Brekelmans)")
 
@@ -266,18 +273,11 @@ if __name__ == "__main__":
                            [0, 0, 0, 255, 0, 128, 0, 0], [0, 0, 255, 0, 128, 128, 219, 255], 1, 1, 63736, [64, 0, 64],
                            [0, 0, 0], [255, 0, 255], [0, 255, 0], [255, 0, 0], _i, _i, _i, _i, [_i, 0, 0])
 
-    if snakemake.config['build_network']['supress_psse_output']:
-        # this prevents PSS/E from spamming a lot of output
-        psspy.report_output(6, '', [])
-        psspy.progress_output(6, '', [])
-        psspy.alert_output(6, '', [])
-        psspy.prompt_output(6, '', [])
-
-    countries = snakemake.config['countries']
+    countries = snakemake.config["bidding_zones"]
 
     # Load all data from the sqlite database
     c = sqlite3.connect(snakemake.input.database)
-    buses = pd.read_sql("SELECT * FROM buses WHERE carrier LIKE 'AC' AND v_nom NOT NULL", con=c).set_index('Bus')
+    buses = pd.read_sql("SELECT * FROM buses", con=c).set_index('Bus')
 
     generators = pd.read_sql("SELECT * FROM generators", con=c).set_index('Generator')
     storage_units = pd.read_sql("SELECT * FROM storage_units", con=c).set_index('StorageUnit')
@@ -289,12 +289,15 @@ if __name__ == "__main__":
     transformers = pd.read_sql("SELECT * FROM transformers", con=c).set_index('Transformer')
     links = pd.read_sql("SELECT * FROM links", con=c).set_index('Link')
 
-    # get a sorted list of countries for the area id:  in nordics first, sort the rest alphabetically
-    all_countries = pd.Series(buses["country"].unique())
-    country_in_config = all_countries.map(lambda country: country in snakemake.config["countries"])
-    all_countries = pd.concat([all_countries.rename('country'), country_in_config.rename('country_in_config')], axis=1)\
-        .sort_values(["country_in_config", "country"], ascending=[False, True])\
-        .reset_index()['country']
+    # get a sorted list of bidding zones for the area id:  in nordics first, sort the rest alphabetically
+    all_bidding_zones = pd.Series(buses["bidding_zone"].unique())
+    bidding_zone_in_config = all_bidding_zones.map(lambda country: country in snakemake.config["bidding_zones"])
+    all_bidding_zones = pd.concat([
+        all_bidding_zones.rename('bidding_zone'),
+        bidding_zone_in_config.rename('bidding_zone_in_config')
+    ], axis=1)\
+        .sort_values(["bidding_zone_in_config", "bidding_zone"], ascending=[False, True])\
+        .reset_index()['bidding_zone']
 
     # find all buses with external link (only for visualization, 'outside' buses will be disabled)
     buses_with_external_links = set()
@@ -308,7 +311,7 @@ if __name__ == "__main__":
     logger.info('Adding buses with generators, storage units, loads, shunt impedances and external links')
     for bus_id, bus in buses.iterrows():
         status = bus_included(bus, snakemake.config)
-        if not status and bus.name not in buses_with_external_links and bus.country not in snakemake.config['countries']:
+        if not status and bus.name not in buses_with_external_links:
             # don't draw buses in countries which are not in the nordics, except to show external links
             continue
 
@@ -320,7 +323,7 @@ if __name__ == "__main__":
 
         has_generators = len(generators[generators["bus"] == bus.name].index) > 0 or len(storage_units[storage_units["bus"] == bus.name].index) > 0
 
-        add_bus(bus, all_countries[all_countries == bus.country].index[0] + 1, has_generators, snakemake.config)
+        add_bus(bus, all_bidding_zones[all_bidding_zones == bus.bidding_zone].index[0] + 1, has_generators, snakemake.config)
         buses_in_psse.add(bus.name)
 
         index = 1
@@ -341,16 +344,17 @@ if __name__ == "__main__":
             index += 1
 
         for _, external_link in external_links_bus.iterrows():
-            add_external_link(external_link, bus, index, status)
+            bus_outside = buses.loc[external_link.bus_outside]
+            area = all_bidding_zones[all_bidding_zones == bus_outside.bidding_zone].index[0] + 1
+            add_external_link(external_link, bus, index, status, area)
             index += 1
 
     # a .loc file contains the coordinates of all buses to draw the SLD diagram geographically correct
     create_loc_file(buses, snakemake.output.loc)
 
+    logger.info('Adding lines')
     # indexes are meant to find a 'free' id (for both buses) when connecting 2 buses
     indexes = {k: [] for k in buses.index.unique()}
-
-    logger.info('Adding lines')
     for line_id, line in lines.iterrows():
         if line.bus0 not in indexes.keys() or line.bus1 not in indexes.keys() \
                 or line.bus0 not in buses_in_psse or line.bus1 not in buses_in_psse:
@@ -362,6 +366,8 @@ if __name__ == "__main__":
         indexes[line.bus1].append(index)
 
     logger.info('Adding transformers')
+    # indexes are meant to find a 'free' id (for both buses) when connecting 2 buses
+    indexes = {k: [] for k in buses.index.unique()}
     for transformer_id, transformer in transformers.iterrows():
         if transformer.bus0 not in indexes.keys() or transformer.bus1 not in indexes.keys() \
                 or transformer.bus0 not in buses_in_psse or transformer.bus1 not in buses_in_psse:
@@ -373,6 +379,8 @@ if __name__ == "__main__":
         indexes[transformer.bus1].append(index)
 
     logger.info('Adding links')
+    # indexes are meant to find a 'free' id (for both buses) when connecting 2 buses
+    indexes = {k: [] for k in buses.index.unique()}
     for link_id, link in links.iterrows():
         if link.bus0 not in indexes.keys() or link.bus1 not in indexes.keys() \
                 or link.bus0 not in buses_in_psse or link.bus1 not in buses_in_psse:
@@ -384,11 +392,11 @@ if __name__ == "__main__":
 
     # add countries as area; TODO (?): trade zones within countries -> manual work
     logger.info('Adding areas')
-    for i, country in enumerate(all_countries, start=1):
+    for i, country in enumerate(all_bidding_zones, start=1):
         add_area(i, country)
 
     # draw the sld
-    logger.info('Drawing buses (can take a minute)')
+    logger.info('Drawing buses (can take some time)')
     buses.apply(draw_bus, axis=1)
 
     logger.info('Disabling excluded buses')

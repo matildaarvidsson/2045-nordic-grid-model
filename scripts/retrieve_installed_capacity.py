@@ -17,10 +17,9 @@ if __name__ == "__main__":
     client = EntsoePandasClient(api_key=snakemake.config["entsoe"]["security_token"])
     capacity = get_empty_generation_df(snakemake.config["generation"])
     (start, end) = get_start_and_end_of_year(snakemake.config["year"])  # to get installed capacity at END of the year
-    for country in snakemake.config["countries"]:
-        country_entsoe = snakemake.config["entsoe"]["country_map"].get(country, country)  # for mapping DK to DK2
+    for bidding_zone in snakemake.config["bidding_zones"]:
         df = client.query_installed_generation_capacity(
-            country_entsoe,
+            bidding_zone,
             start=start,
             end=end,
         ).iloc[0].reset_index()
@@ -30,6 +29,6 @@ if __name__ == "__main__":
         df["production_type_mapped"] = df["production_type"].map(
             lambda production_type: snakemake.config["generation"]["entsoe_map"].get(production_type, 'other')
         )
-        capacity[country] = df.groupby('production_type_mapped')['capacity'].sum()
+        capacity[bidding_zone] = df.groupby('production_type_mapped')['capacity'].sum()
 
     capacity.sort_index().to_csv(snakemake.output.installed_capacity)

@@ -1,5 +1,5 @@
+import itertools
 from pathlib import Path
-import pprint
 from typing import Tuple
 
 import pandas as pd
@@ -155,7 +155,7 @@ def bus_included(bus: pd.Series, config: dict) -> bool:
     if bus is None:
         return False
 
-    if bus.country not in config["countries"]:
+    if bus.bidding_zone not in config["bidding_zones"]:
         return False
 
     if bus.carrier != 'AC':
@@ -168,3 +168,12 @@ def bus_included(bus: pd.Series, config: dict) -> bool:
         return False
 
     return True
+
+
+def map_bidding_zone(bidding_zone: str, config: dict) -> str:
+    return config["bidding_zone_map"].get(bidding_zone, bidding_zone)
+
+
+def all_combinations(list1: list, list2: list) -> list:
+    l = [list(zip(each_permutation, list2)) for each_permutation in itertools.permutations(list1, len(list2))]
+    return [item for sublist in l for item in sublist]  # flatten

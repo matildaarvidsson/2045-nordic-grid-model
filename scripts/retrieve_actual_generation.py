@@ -23,10 +23,9 @@ if __name__ == "__main__":
     snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
     snapshot = pd.Timestamp(snapshot, tz="UTC")
 
-    for country in snakemake.config["countries"]:
-        country_entsoe = snakemake.config["entsoe"]["country_map"].get(country, country)  # for mapping DK to DK2
+    for bidding_zone in snakemake.config["bidding_zones"]:
         df = client.query_generation(
-            country_entsoe,
+            bidding_zone,
             start=snapshot,
             end=snapshot + pd.DateOffset(hours=1),
         )
@@ -37,7 +36,7 @@ if __name__ == "__main__":
         df["production_type_mapped"] = df["production_type"].map(
             lambda production_type: snakemake.config["generation"]["entsoe_map"].get(production_type, 'other')
         )
-        generation[country] = df.groupby('production_type_mapped')['generation'].sum()
+        generation[bidding_zone] = df.groupby('production_type_mapped')['generation'].sum()
 
     generation.sort_index(inplace=True)
     generation.to_csv(snakemake.output.actual_generation)

@@ -29,6 +29,13 @@ def map_included_buses(n: Network, config: dict):
     n.buses["in_synchronous_network"] = n.buses.index.isin(included_buses)
 
 
+def set_bidding_zone(n: Network):
+    n.buses['bidding_zone'] = n.buses['country']  # default to country
+
+    n.buses.loc[(n.buses['country'] == 'DK') & (n.buses['in_synchronous_network'] == 0), 'bidding_zone'] = 'DK_1'
+    n.buses.loc[(n.buses['country'] == 'DK') & (n.buses['in_synchronous_network'] == 1), 'bidding_zone'] = 'DK_2'
+
+
 def set_line_impedance_from_linetypes(n: Network, config: dict):
     Z_base = n.lines['v_nom'] ** 2 / config["M_base"]
     num_parallel = n.lines['num_parallel'].replace(0, 1)  # to avoid math problems
@@ -120,11 +127,14 @@ def apply_parameter_corrections(n: Network, config: dict):
     n.links.loc['14806', "p_nom"] = True
 
     # move 3/4 of load from one bus to another to fix loadflow problems
-    moved_load = n.loads.loc['7010'].copy()
-    load = n.loads.loc['7010', 'p_set']
+    factor = 1/2
+    total_load = n.loads.loc['7010', 'p_set']
 
-    n.loads.loc['7010', 'p_set'] = load * 1/4
-    moved_load.p_set = load * 3/4
+    n.loads.loc['7010', 'p_set'] = total_load * (1-factor)
+
+    moved_load = n.loads.loc['7010'].copy()
+    moved_load['bus'] = '7017'
+    moved_load.p_set = total_load * factor
     n.loads.loc['7017'] = moved_load
 
 
@@ -166,14 +176,24 @@ if __name__ == "__main__":
     snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
     snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
 
+    logger.info('Setting dynamic attributes for snapshot')
     set_dynamic_attributes(n, components, dynamic_attributes)
 
+    logger.info('Applying manual parameter corrections')
     apply_parameter_corrections(n, snakemake.config)
 
+    logger.info('Adding in_synchronous_area data')
     map_included_buses(n, snakemake.config)
+
+    logger.info('Adding bidding_zone info (for DK)')
+    set_bidding_zone(n)
+    logger.info('Setting line impedance')
     set_line_impedance_from_linetypes(n, snakemake.config)
+    logger.info('Setting generation p_set')
     set_generator_p_set(n, snakemake.config)
+    logger.info('Setting generation type')
     set_generation_type(n, snakemake.config)
 
     # creates the 'raw' database, still saved to keep
+    logger.info('Saving to database')
     create_case_database(n, components, snakemake.output.database_raw, snakemake.output.database, snakemake.config)

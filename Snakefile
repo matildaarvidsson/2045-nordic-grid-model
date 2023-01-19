@@ -9,29 +9,28 @@ RDIR = run["name"] + "/" if run.get("name") else ""
 rule build_and_validate_all:
     input:
         expand("validation/"+RDIR+"{case}/installed_generation_capacity.xlsx", case=CASES),    # validate_database
-        expand("psse/"+RDIR+"{case}/network_{case}.sav", case=CASES),                          # build_psse_network
+        expand("psse/"+RDIR+"{case}/nordics_{case}.sav", case=CASES),                          # build_psse_network
         # expand("validation/"+RDIR+"{case}/psse_validation_report.xlsx", case=CASES),         # validate_psse
-
 
 rule build_psse_network:
     name: "Build PSS/E"
     input:
-        database="database/" + RDIR + "network_{case}.sqlite",
+        database="database/" + RDIR + "nordics_{case}.sqlite",
     output:
-        loc="psse/"+RDIR+"{case}/network_{case}.loc",
-        sav="psse/"+RDIR+"{case}/network_{case}.sav",
-        sld="psse/"+RDIR+"{case}/network_{case}.sld"
+        loc="psse/"+RDIR+"{case}/nordics_{case}.loc",
+        sav="psse/"+RDIR+"{case}/nordics_{case}.sav",
+        sld="psse/"+RDIR+"{case}/nordics_{case}.sld"
     log:
-        "logs/"+RDIR+"build_psse_network_{case}.log",
+        "logs/"+RDIR+"build_psse_nordics_{case}.log",
     script:
         "scripts/build_psse_network.py"
 
 rule validate_database:
     name: "Validate Database"
     input:
-        database="database/" + RDIR + "network_{case}.sqlite",
-        entsoe_capacities="data/entsoe-transparency/installed_capacity.csv",
-        entsoe_generation="data/entsoe-transparency/actual_generation_{case}.csv"
+        database="database/" + RDIR + "nordics_{case}.sqlite",
+        entsoe_capacities="data/" + RDIR + "entsoe-transparency/installed_capacity.csv",
+        entsoe_generation="data/" + RDIR + "entsoe-transparency/actual_generation_{case}.csv"
     output:
         installed_generation_capacity="validation/"+RDIR+"{case}/installed_generation_capacity.xlsx",
         actual_generation="validation/"+RDIR+"{case}/actual_generation.xlsx"
@@ -43,7 +42,7 @@ rule validate_database:
 rule validate_psse:
     name: "Validate PSS/E"
     input:
-        sav="psse/"+RDIR+"{case}/network_{case}.sav"
+        sav="psse/"+RDIR+"{case}/nordics_{case}.sav"
     output:
         report="validation/"+RDIR+"{case}/psse_validation_report.xlsx"  # TODO: implement
     log:
@@ -54,7 +53,7 @@ rule validate_psse:
 rule retrieve_installed_capacity:
     name: "Retrieve installed capacity"
     output:
-        installed_capacity="data/entsoe-transparency/installed_capacity.csv"
+        installed_capacity="data/" + RDIR + "entsoe-transparency/installed_capacity.csv"
     log:
         "logs/retrieve_installed_capacity.log",
     script:
@@ -74,7 +73,7 @@ rule retrieve_actual_generation:
 rule retrieve_cross_border_flow:
     name: "Retrieve cross-border flow"
     output:
-        cross_border_flows="data/entsoe-transparency/cross_border_flow.csv"
+        cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv"
     log:
         "logs/retrieve_cross_border_flow.log"
     script:
@@ -84,12 +83,12 @@ rule retrieve_cross_border_flow:
 rule entsoe_to_sqlite:
         name: "Build database (ENTSO-E)"
         input:
-            actual_generation="data/entsoe-transparency/actual_generation_{case}.csv",
-            cross_border_flows="data/entsoe-transparency/cross_border_flow.csv",
+            actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation_{case}.csv",
+            cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
             snapshots="data/" + RDIR + "snapshots.csv",
-            database="database/raw/" + RDIR + "network_{case}_without_entsoe.sqlite",
+            database="database/raw/" + RDIR + "nordics_{case}_without_entsoe.sqlite",
         output:
-            database = "database/" + RDIR + "network_{case}.sqlite",
+            database = "database/" + RDIR + "nordics_{case}.sqlite",
         log:
             "logs/" + RDIR + "{case}_entsoe_to_sqlite.log",
         script:
@@ -115,8 +114,8 @@ if config.get('source') == 'pypsa':
             network="input/" + RDIR + "elec.nc",
             snapshots="data/" + RDIR + "snapshots.csv",
         output:
-            database="database/raw/" + RDIR + "network_{case}_without_entsoe.sqlite",
-            database_raw="database/raw/" + RDIR + "network_{case}.sqlite",
+            database="database/raw/" + RDIR + "nordics_{case}_without_entsoe.sqlite",
+            database_raw="database/raw/" + RDIR + "nordics_{case}.sqlite",
         log:
             "logs/" + RDIR + "{case}_pypsa_to_sqlite.log",
         script:

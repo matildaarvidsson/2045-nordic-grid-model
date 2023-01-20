@@ -20,9 +20,7 @@ if __name__ == "__main__":
 
     generation = get_empty_generation_df(snakemake.config["generation"])
 
-    snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
-    snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
-    snapshot = pd.Timestamp(snapshot, tz="UTC")
+    snapshot = pd.Timestamp(snakemake.config["snapshot"], tz='UTC')
 
     for area in all_areas_entsoe(snakemake.config):
         df = client.query_generation(

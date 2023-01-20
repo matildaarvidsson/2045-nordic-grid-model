@@ -1,9 +1,5 @@
 run:
-  name: "" # use this to keep track of runs with different settings
-
-# any of:
-# - pypsa (output from PyPSA-Eur: https://pypsa-eur.readthedocs.io/en/latest/)
-source: pypsa
+  name: "2015-high" # use this to keep track of runs with different settings
 
 logging:
   level: INFO
@@ -24,13 +20,7 @@ M_base: 100 # power base for p.u. calculations
 
 generator_p_min: 5  # MW
 
-snapshots:  # either percentage or snapshot is required, normally only percentage is specified
-  high:
-    percentage: null # percentage on the load duration curve
-    snapshot: '2015-02-14 16:00:00' # UTC
-  low:
-    percentage: null
-    snapshot: '2015-07-03 19:00:00' # UTC
+snapshot: '2015-02-14 16:00:00'  # UTC
 
 build_network:
   exclude_under_construction: False

@@ -21,9 +21,7 @@ if __name__ == "__main__":
     load = pd.DataFrame(dtype='float64')
     load.index.name = 'bidding_zone'
 
-    snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
-    snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
-    snapshot = pd.Timestamp(snapshot, tz="UTC")
+    snapshot = pd.Timestamp(snakemake.config["snapshot"], tz='UTC')
 
     for area in all_areas_entsoe(snakemake.config):
         df = client.query_load(

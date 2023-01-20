@@ -194,9 +194,7 @@ if __name__ == "__main__":
 
     n = Network(snakemake.input.network)
 
-    snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
-    snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
-    snapshot = pd.Timestamp(snapshot, tz='UTC')
+    snapshot = pd.Timestamp(snakemake.config["snapshot"], tz='UTC')
 
     logger.info('Setting dynamic attributes for snapshot')
     set_dynamic_attributes(n, components, dynamic_attributes, snapshot)

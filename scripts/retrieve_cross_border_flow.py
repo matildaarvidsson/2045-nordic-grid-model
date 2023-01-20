@@ -20,9 +20,7 @@ if __name__ == "__main__":
 
     client = get_entsoe_client(snakemake.config)
 
-    snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
-    snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
-
+    snapshot = snakemake.config["snapshot"]
     start = pd.Timestamp(snapshot, tz='UTC')
     end = start + pd.DateOffset(hours=1)
 

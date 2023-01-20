@@ -71,6 +71,17 @@ rule retrieve_actual_generation:
     script:
         "scripts/retrieve_actual_generation.py"
 
+rule retrieve_load:
+    name: "Retrieve load"
+    input:
+        snapshots="data/" + RDIR + "snapshots.csv"
+    output:
+        load="data/" + RDIR + "entsoe-transparency/load_{case}.csv"
+    log:
+        "logs/" + RDIR + "retrieve_load_{case}.log"
+    script:
+        "scripts/retrieve_load.py"
+
 rule retrieve_cross_border_flow:
     name: "Retrieve cross-border flow"
     input:
@@ -115,6 +126,7 @@ if config.get('source') == 'pypsa':
         name: "Build database (PyPSA)"
         input:
             network="input/" + RDIR + "elec.nc",
+            load="data/" + RDIR + "entsoe-transparency/load_{case}.csv",
             snapshots="data/" + RDIR + "snapshots.csv",
         output:
             database="database/raw/" + RDIR + "nordics_{case}_without_entsoe.sqlite",

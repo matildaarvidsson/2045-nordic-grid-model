@@ -155,6 +155,20 @@ def set_generation_type(n: Network, config: dict):
     )
 
 
+def scale_load(n: Network, load_per_bidding_zone: pd.Series):
+    n.loads["p_set_country"] = n.loads["p_set"]  # save for comparison
+
+    n.loads["country"] = n.loads["bus"].map(lambda bus: n.buses.loc[bus, "country"])
+    n.loads["bidding_zone"] = n.loads["bus"].map(lambda bus: n.buses.loc[bus, "bidding_zone"])
+
+    n.loads["country_factor"] = n.loads.groupby("country", group_keys=False)['p_set'].apply(lambda x: x / x.sum())
+    n.loads["bidding_zone_factor"] = n.loads.groupby("bidding_zone", group_keys=False)['country_factor'].apply(lambda x: x / x.sum())
+
+    n.loads["p_set"] = n.loads.groupby("bidding_zone", group_keys=False)['bidding_zone_factor'].apply(
+        lambda x: x * (load_per_bidding_zone[x.name] if (x.name in load_per_bidding_zone) else 0)
+    )
+
+
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from _helpers import mock_snakemake
@@ -195,12 +209,19 @@ if __name__ == "__main__":
 
     logger.info('Adding bidding_zone info (for DK)')
     set_bidding_zone(n, snakemake.config, snapshot)
+
     logger.info('Setting line impedance')
     set_line_impedance_from_linetypes(n, snakemake.config)
+
     logger.info('Setting generation p_set')
     set_generator_p_set(n, snakemake.config)
+
     logger.info('Setting generation type')
     set_generation_type(n, snakemake.config)
+
+    logger.info('Scaling load per bidding zone')
+    entsoe_load = pd.read_csv(snakemake.input.load, index_col=0)['load']
+    scale_load(n, entsoe_load)
 
     # creates the 'raw' database, still saved to keep
     logger.info('Saving to database')

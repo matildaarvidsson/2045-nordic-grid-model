@@ -178,10 +178,8 @@ def all_combinations(list1: list, list2: list) -> list:
 
 
 def all_areas_entsoe(config: dict):
-    # Each area will be a tuple of (database_name, entsoe_name)
-    # only different for DK where entsoe data is from DK_2 only
-    bidding_zones = [(bidding_zone, bidding_zone) for bidding_zone in config["bidding_zones"]]
-    countries = [(country, config["entsoe"]["country_map"].get(country, country)) for country in config["countries"]]
+    bidding_zones = config["bidding_zones"]
+    countries = config["countries"]
 
     return sorted(set(bidding_zones) | set(countries))
 

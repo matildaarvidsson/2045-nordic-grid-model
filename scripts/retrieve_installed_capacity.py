@@ -21,10 +21,10 @@ if __name__ == "__main__":
     capacity = get_empty_generation_df(snakemake.config["generation"])
     (start, end) = get_start_and_end_of_year(snakemake.config["year"])  # to get installed capacity at END of the year
 
-    for area, area_entsoe in all_areas_entsoe(snakemake.config):
+    for area in all_areas_entsoe(snakemake.config):
         try:
             df = client.query_installed_generation_capacity(
-                area_entsoe,
+                area,
                 start=start,
                 end=end,
             ).iloc[0].reset_index()

@@ -18,26 +18,21 @@ if __name__ == "__main__":
 
     client = get_entsoe_client(snakemake.config)
 
-    generation = get_empty_generation_df(snakemake.config["generation"])
+    load = pd.DataFrame(dtype='float64')
+    load.index.name = 'bidding_zone'
 
     snapshots = pd.read_csv(snakemake.input.snapshots, index_col=0)
     snapshot = snapshots.loc[snakemake.wildcards.case, 'snapshot']
     snapshot = pd.Timestamp(snapshot, tz="UTC")
 
     for area in all_areas_entsoe(snakemake.config):
-        df = client.query_generation(
+        df = client.query_load(
             area,
             start=snapshot,
             end=snapshot + pd.DateOffset(hours=1),
         )
 
-        df = df.loc[snapshot].reset_index()
-        df = df.set_axis(['production_type', 'generation'], axis=1)
+        load.loc[area, 'load'] = df.loc[snapshot, 'Actual Load']
 
-        df["production_type_mapped"] = df["production_type"].map(
-            lambda production_type: snakemake.config["generation"]["entsoe_map"].get(production_type, 'other')
-        )
-        generation[area] = df.groupby('production_type_mapped')['generation'].sum()
-
-    generation.sort_index(inplace=True)
-    generation.to_csv(snakemake.output.actual_generation)
+    load.sort_index(inplace=True)
+    load.to_csv(snakemake.output.load)

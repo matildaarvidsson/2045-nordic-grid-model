@@ -75,13 +75,13 @@ def validate_actual_generation(c: Connection, config: dict) -> None:
     totals["entsoe"] = 0
 
     entsoe_generation = pd.read_csv(snakemake.input.entsoe_generation).set_index('type')
-    model_capacity = get_generation_totals('p_set', 'country', c, config)
+    model_generation = get_generation_totals('p_set', 'bidding_zone', c, config)
 
     with pd.ExcelWriter(snakemake.output.actual_generation, engine='xlsxwriter') as writer:
-        for country in snakemake.config["countries"]:
+        for bidding_zone in snakemake.config["bidding_zones"]:
             df = empty_df.copy()
-            df['model'] = model_capacity[country]
-            df['entsoe'] = entsoe_generation[country]
+            df['model'] = model_generation[bidding_zone]
+            df['entsoe'] = entsoe_generation[bidding_zone]
             df.fillna(0, inplace=True)
 
             df.loc['total'] = df.sum(axis=0)
@@ -89,7 +89,7 @@ def validate_actual_generation(c: Connection, config: dict) -> None:
             df['difference'] = df['model'] - df['entsoe']
             df['percentage'] = df['model'] / df['entsoe']
 
-            df.to_excel(writer, sheet_name=country)
+            df.to_excel(writer, sheet_name=bidding_zone)
 
             totals["model"] = totals["model"] + df["model"]
             totals["entsoe"] = totals["entsoe"] + df["entsoe"]

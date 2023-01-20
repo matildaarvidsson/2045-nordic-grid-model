@@ -134,8 +134,6 @@ generation:
 # https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html#_authentication_and_authorisation
 entsoe:
   security_token: fe5dbb25-46fd-4a4b-a19c-d3d0772e00d5
-  country_map:
-    'DK': 'DK_2'
 
 
 #cross_border_flows:

@@ -29,7 +29,8 @@ rule validate_database:
         entsoe_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv"
     output:
         installed_generation_capacity="validation/"+RDIR+"installed_generation_capacity.xlsx",
-        actual_generation="validation/"+RDIR+"actual_generation.xlsx"
+        actual_generation_country="validation/"+RDIR+"actual_generation_per_country.xlsx",
+        actual_generation_bidding_zone="validation/"+RDIR+"actual_generation_per_bidding_zone.xlsx",
     log:
         "logs/" + RDIR + "validate_database.log",
     script:
@@ -108,3 +109,14 @@ rule pypsa_to_sqlite:
         "logs/" + RDIR + "pypsa_to_sqlite.log",
     script:
         "scripts/pypsa_to_sqlite.py"
+
+rule load_duration_curve:
+        name: "Load duration curve"
+        input:
+            network = "input/" + RDIR + "elec.nc",
+        output:
+            load_duration_curve="data/" + RDIR + "network_load_duration_curve.png",
+        log:
+            "logs/" + RDIR + "load_duration_curve.log"
+        script:
+            "scripts/load_duration_curve.py"

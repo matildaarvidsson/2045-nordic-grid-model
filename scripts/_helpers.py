@@ -136,8 +136,9 @@ def throw_on_psspy_error(error_code: int, detail=None) -> None:
         raise Exception("PSSPy API error: {0} (see API documentation for details)".format(error_code))
 
 
-def get_start_and_end_of_year(year: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
-    end = pd.Timestamp(year=year, month=12, day=31, hour=23, tz="UTC")  # end of the year
+def get_start_and_end_of_year(date: str) -> Tuple[pd.Timestamp, pd.Timestamp]:
+    date = pd.Timestamp(date)
+    end = pd.Timestamp(year=date.year, month=12, day=31, hour=23, tz="UTC")  # end of the year
     start = end - pd.DateOffset(years=1)  # end of last year (to have a period of exactly one year including 1st of Jan)
 
     return start, end

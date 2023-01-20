@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     client = get_entsoe_client(snakemake.config)
     capacity = get_empty_generation_df(snakemake.config["generation"])
-    (start, end) = get_start_and_end_of_year(snakemake.config["year"])  # to get installed capacity at END of the year
+    (start, end) = get_start_and_end_of_year(snakemake.config["snapshot"])  # to get installed capacity at END of the year
 
     for area in all_areas_entsoe(snakemake.config):
         try:

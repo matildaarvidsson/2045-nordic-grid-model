@@ -366,10 +366,11 @@ if __name__ == "__main__":
     # load = n.loads.groupby('country')['p_set'].sum().fillna(0)
     #
     # imbalance = (load + total_flows_country - all_generation).dropna()
-    # scale_factors = ((load - imbalance) / load).fillna(1)
+    # scale_factors = ((all_generation + imbalance) / all_generation).fillna(1)
     #
-    # # scale loads
-    # n.loads['p_set'] = n.loads.groupby('country', group_keys=False)['p_set'].apply(lambda x, factor: x * factor[x.name], scale_factors)
+    # # scale generation
+    # n.generators['p_set'] = n.generators.groupby('country', group_keys=False)['p_set'].apply(lambda x, factor: x * factor[x.name], scale_factors)
+    # n.storage_units['p_set'] = n.storage_units.groupby('country', group_keys=False)['p_set'].apply(lambda x, factor: x * factor[x.name], scale_factors)
 
     #
     # Load data includes losses, but it shouldn't

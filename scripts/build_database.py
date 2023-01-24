@@ -378,6 +378,6 @@ if __name__ == "__main__":
     scale_factor = (n.loads["p_set"].sum() - snakemake.config["losses"]) / n.loads["p_set"].sum()
     n.loads["p_set"] = scale_factor * n.loads["p_set"]
 
-    # creates the 'raw' database, still saved to keep
+    # creates the database with useful information and a 'raw' database with more information
     logger.info('Saving to database')
     create_case_database(n, components, external_links, snakemake.output.database_raw, snakemake.output.database, snakemake.config)

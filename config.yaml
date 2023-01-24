@@ -18,10 +18,14 @@ M_base: 100 # power base for p.u. calculations
 
 generator_p_min: 5  # MW
 
-snapshot: '2020-01-06 12:00:00'  # UTC
-#snapshot: '2020-01-06 16:00:00'  # UTC
+losses: 1400  # MW
+
+# Watch out with availability of data in ENTSO-E
+# e.g. Between 14.10.2019 07:00 and 03.03.2020 10:00, there is no data on cross-flow NO1-NO2
+snapshot: '2020-03-04 18:00:00'  # UTC -> 19:00 in our timezone
 
 build_network:
+  scheduled_voltage: 1.0  # pu (410 kV)
   exclude_under_construction: False
   supress_psse_output: True
   slack_buses: ["6591"]  # centralized nuclear plant

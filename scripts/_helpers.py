@@ -186,7 +186,7 @@ def all_areas_entsoe(config: dict):
 
 
 def get_entsoe_client(config: dict) -> EntsoePandasClient:
-    import requests_cache
-
-    requests_cache.install_cache('entsoe_api')
+    # import requests_cache
+    #
+    # requests_cache.install_cache('entsoe_api')
     return EntsoePandasClient(api_key=config["entsoe"]["security_token"])

@@ -5,8 +5,9 @@ RDIR = run["name"] + "/" if run.get("name") else ""
 
 rule build_and_validate_all:
     input:
-        "validation/"+RDIR+"installed_generation_capacity.xlsx",    # validate_database
-        "validation/"+RDIR+"psse_cross_border_flow.xlsx",           # validate_psse
+        "validation/"+RDIR+"installed_generation_capacity_per_country.xlsx",    # validate_database
+        "psse/"+RDIR+"nordics.sav",                                             # build_psse
+        "validation/"+RDIR+"psse_cross_border_flow.xlsx",                       # validate_psse
 
 rule build_psse_network:
     name: "Build PSS/E"
@@ -25,12 +26,16 @@ rule validate_database:
     name: "Validate Database"
     input:
         database="database/" + RDIR + "nordics.sqlite",
+        entsoe_cross_border_flow="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
         entsoe_capacities="data/" + RDIR + "entsoe-transparency/installed_capacity.csv",
-        entsoe_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv"
+        entsoe_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv",
+        entsoe_load="data/" + RDIR + "entsoe-transparency/load.csv",
     output:
-        installed_generation_capacity="validation/"+RDIR+"installed_generation_capacity.xlsx",
+        generation_capacity_country="validation/"+RDIR+"installed_generation_capacity_per_country.xlsx",
+        generation_capacity_bidding_zone="validation/"+RDIR+"installed_generation_capacity_per_bidding_zone.xlsx",
         actual_generation_country="validation/"+RDIR+"actual_generation_per_country.xlsx",
         actual_generation_bidding_zone="validation/"+RDIR+"actual_generation_per_bidding_zone.xlsx",
+        balance="validation/"+RDIR+"balance.xlsx",
     log:
         "logs/" + RDIR + "validate_database.log",
     script:
@@ -76,6 +81,7 @@ rule retrieve_load:
         "scripts/retrieve_load.py"
 
 rule retrieve_cross_border_flow:
+    name: "Retrieve cross-border flow"
     output:
         cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
     log:
@@ -84,31 +90,20 @@ rule retrieve_cross_border_flow:
         "scripts/retrieve_cross_border_flow.py"
 
 # cross-border flows and actual generation
-rule entsoe_to_sqlite:
-        name: "Build database (ENTSO-E)"
+rule build_database:
+        name: "Build database"
         input:
+            network="input/" + RDIR + "elec.nc",
             actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv",
             cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
-            database="database/raw/" + RDIR + "nordics_without_entsoe.sqlite",
+            load = "data/" + RDIR + "entsoe-transparency/load.csv",
         output:
             database = "database/" + RDIR + "nordics.sqlite",
+            database_raw = "database/raw/" + RDIR + "nordics.sqlite",
         log:
-            "logs/" + RDIR + "entsoe_to_sqlite.log",
+            "logs/" + RDIR + "build_database.log",
         script:
-            "scripts/entsoe_to_sqlite.py"
-
-rule pypsa_to_sqlite:
-    name: "Build database (PyPSA)"
-    input:
-        network="input/" + RDIR + "elec.nc",
-        load="data/" + RDIR + "entsoe-transparency/load.csv",
-    output:
-        database="database/raw/" + RDIR + "nordics_without_entsoe.sqlite",
-        database_raw="database/raw/" + RDIR + "nordics.sqlite",
-    log:
-        "logs/" + RDIR + "pypsa_to_sqlite.log",
-    script:
-        "scripts/pypsa_to_sqlite.py"
+            "scripts/build_database.py"
 
 rule load_duration_curve:
         name: "Load duration curve"

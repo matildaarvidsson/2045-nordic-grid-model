@@ -50,26 +50,27 @@ def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, c
     if bus.carrier == 'DC':
         return False
 
+    p = machine.p_set
+
+    if p <= 0:
+        return False
+
     pf = 0.9  # Check value, maybe change per generation type ?
     angle = math.acos(pf)
     m_base = machine.p_nom / pf  # do not take into account setpoint, only actual capacity [MW]
 
-    p = machine.p_set
-    p_min = machine.p_nom * machine.p_min_pu if machine.p_min_pu >= 0 else 0
-    p_max = machine.p_nom * machine.p_max_pu
+    p_min = 0
+    p_max = machine.p_nom
 
     q_max = m_base * math.sin(angle)
     q_min = -q_max
-
-    if machine.p_nom <= config["generator_p_min"] or p_max <= 0:
-        return False
 
     try:
         psspy.plant_data_4(
             int(machine.bus),
             0,
             [_i, _i],
-            [_f, _f]
+            [config["build_network"]["scheduled_voltage"], _f]
         )
 
         psspy.machine_data_4(
@@ -155,7 +156,7 @@ def add_transformer(transformer: pd.Series, id: int):
         raise e
 
 
-def add_link(link: pd.Series, bus0: pd.Series, bus1: pd.Series):
+def add_link(link: pd.Series, bus0: pd.Series, bus1: pd.Series, config: dict):
     # Two possible connections:
     # AC <-> AC: VSC
     # AC <-> DC: Multi-DC --> change topology to combine links so this does not happen
@@ -171,13 +172,13 @@ def add_link(link: pd.Series, bus0: pd.Series, bus1: pd.Series):
                 str(link.name),  # TODO
                 1,
                 [int(link.bus0), 2, _i, _i, _i],
-                [float(link.p_set), _f, _f, _f, _f, float(link.p_nom), _f, _f, _f, _f, _f]
+                [float(link.p_set), config["build_network"]["scheduled_voltage"], _f, _f, _f, float(link.p_nom), _f, _f, _f, _f, _f]
             )
             psspy.vsc_dc_converter_data_3(
                 str(link.name),  # TODO
                 2,
                 [int(link.bus1), 1, _i, _i, _i],
-                [400, _f, _f, _f, _f, float(link.p_nom), _f, _f, _f, _f, _f]
+                [400, config["build_network"]["scheduled_voltage"], _f, _f, _f, float(link.p_nom), _f, _f, _f, _f, _f]
             )
         except Exception as e:
             logger.debug(link)
@@ -403,7 +404,7 @@ if __name__ == "__main__":
 
         bus0 = buses.loc[link.bus0]
         bus1 = buses.loc[link.bus1]
-        add_link(link, bus0, bus1)
+        add_link(link, bus0, bus1, snakemake.config)
 
     # add countries as area; TODO (?): trade zones within countries -> manual work
     logger.info('Adding areas')

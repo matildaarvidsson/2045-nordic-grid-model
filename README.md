@@ -135,3 +135,7 @@ Then to build a PSS/E network for all snapshots with validation, run:
 ``` bash
 snakemake -c all
 ```
+
+Some tips for using `snakemake`
+- The `snakemake` command always requires the `-c` flag with the amount of parallel cores it can use. By default, use `all` to run it fastest.
+- If you do not want to run the whole workflow (e.g. to test something), for instance to only build the database, write the output file you want: `snakemake -c all database/2020-high/nordics.sqlite`. This stops the workflow after building the database.

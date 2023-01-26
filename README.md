@@ -76,7 +76,7 @@ PyPSA-Eur uses the workflow tool `snakemake`.
 
 PyPSA-Eur suggests simplifying the network (aggregration of buses) to make solving easier, but this project requires the full-resolution model. It can be obtained as follows.
 ``` bash
-snakemake -c all network/elec.nc
+snakemake -c all networks/elec.nc
 ```
 This tells snakemake to run the required scripts to obtain the file `elec.nc`, which is the full-scale model in their own format. This format will serve as input for the DNV Nordics model as described below.
 

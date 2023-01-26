@@ -103,6 +103,11 @@ conda activate dnv-nordics-model
 ```
 
 ### Integration with PSS/E
+It is assumed that PSS/E is already installed.
+
+> **Note**
+> You need to have the licence USB inserted when installing PSS/E
+
 The python integration of PSS/E `psspy` has to be accessible for python. This can be done by adding some paths to the [environment variables](https://helpdeskgeek.com/windows-10/add-windows-path-environment-variable/). Ask colleagues for help if required.
 
 PATH:
@@ -115,6 +120,8 @@ PYTHONPATH:
 - C:\Program Files\PTI\PSSE35\35.4\PSSPY39
 - C:\Program Files\PTI\PSSE35\35.4\PSSBIN
 - C:\Program Files\PTI\PSSE35\35.4\PSSLIB
+
+Lastly, in order to use the bus coordinates when drawing the slider, check the setting in `Edit` > `Preferences` > `Diagram` > Use available geophysical information when auto-placing items
 
 ## Usage
 Similar to PyPSA-Eur, the `snakemake` workflow tool is used. First, make sure the `elec.nc` file is present in the `input` directory. This file is the output of running PyPSA-Eur.

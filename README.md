@@ -106,7 +106,9 @@ conda activate dnv-nordics-model
 It is assumed that PSS/E is already installed.
 
 > **Note**
-> You need to have the licence USB inserted when installing PSS/E
+> You need to have the licence USB inserted when installing PSS/E.
+>
+> If the program crashes on startup, uninstall it and reinstall with the licence USB inserted.
 
 The python integration of PSS/E `psspy` has to be accessible for python. This can be done by adding some paths to the [environment variables](https://helpdeskgeek.com/windows-10/add-windows-path-environment-variable/). Ask colleagues for help if required.
 

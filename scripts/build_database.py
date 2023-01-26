@@ -95,6 +95,11 @@ def set_dynamic_attributes(n: Network, components: dict[str, str], dynamic_attri
                 getattr(n, component)[attribute].update(values.loc[snapshot])
 
 
+def set_transformer_x_pu(n: Network):
+    n.transformers['x_pu'] = n.transformers['x']
+    n.transformers['x'] = None
+
+
 def set_generator_p_set(n: Network, config: dict):
     p_max_generators = n.generators["p_nom"] * n.generators["p_max_pu"]
     p_max_generators.loc[n.generators["carrier"] == 'nuclear'] = n.generators["p_nom"]  # do not limit nuclear
@@ -135,7 +140,7 @@ def apply_parameter_corrections(n: Network, config: dict):
 
     # SydVästlänken link is not commissioned before ~2022
     n.links.loc['14806', "under_construction"] = True
-    n.links.loc['14806', "p_nom"] = True
+    n.links.loc['14806', "p_nom"] = 0
 
     # move 3/4 of load from one bus to another to fix loadflow problems
     factor = 1/2
@@ -224,6 +229,7 @@ def scale_load_per_bidding_zone(n: Network, load_per_bidding_zone: pd.Series):
         lambda x: x * (load_per_bidding_zone[x.name] if (x.name in load_per_bidding_zone) else 0)
     )
 
+
 def remove_load_generation_outside_sync_area(n: Network):
     n.loads.loc[n.loads["bus"].map(lambda bus: n.buses.loc[bus, "in_synchronous_network"]) == 0, 'p_set'] = 0
     n.generators.loc[n.generators["bus"].map(lambda bus: n.buses.loc[bus, "in_synchronous_network"]) == 0, 'p_set'] = 0
@@ -260,6 +266,9 @@ if __name__ == "__main__":
 
     logger.info('Setting dynamic attributes for snapshot')
     set_dynamic_attributes(n, components, dynamic_attributes, snapshot)
+
+    logger.info('Setting x_pu on transformers')
+    set_transformer_x_pu(n)
 
     logger.info('Applying manual parameter corrections')
     apply_parameter_corrections(n, snakemake.config)
@@ -322,7 +331,7 @@ if __name__ == "__main__":
 
     # filter
     generation_units = all_generation_units[all_generation_units["in_synchronous_network"] == 1]
-    generation_units = generation_units[generation_units["p_set"] >= snakemake.config["generator_p_min"]]
+    generation_units = generation_units[generation_units["p_set"] >= 0]
 
     # actual generation in sweden is only available for the whole country
     sweden = snakemake.config['bidding_zones_in_country']['SE']

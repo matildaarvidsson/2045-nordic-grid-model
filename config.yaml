@@ -18,7 +18,7 @@ M_base: 100 # power base for p.u. calculations
 
 generator_p_min: 5  # MW
 
-losses: 1400  # MW
+losses: 1700  # MW
 
 # Watch out with availability of data in ENTSO-E
 # e.g. Between 14.10.2019 07:00 and 03.03.2020 10:00, there is no data on cross-flow NO1-NO2

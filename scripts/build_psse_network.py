@@ -289,7 +289,7 @@ if __name__ == "__main__":
                            [0, 0, 0, 255, 0, 128, 0, 0], [0, 0, 255, 0, 128, 128, 219, 255], 1, 1, 63736, [64, 0, 64],
                            [0, 0, 0], [255, 0, 255], [0, 255, 0], [255, 0, 0], _i, _i, _i, _i, [_i, 0, 0])
 
-    countries = snakemake.config["bidding_zones"]
+    bidding_zones = snakemake.config["bidding_zones"]
 
     # Load all data from the sqlite database
     c = sqlite3.connect(snakemake.input.database)

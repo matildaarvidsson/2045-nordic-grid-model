@@ -2,11 +2,14 @@ configfile: "config.yaml"
 
 run = config.get("run", {})
 RDIR = run["name"] + "/" if run.get("name") else ""
+RDIR_INPUT = run["input"] + "/" if run.get("input") else ""
 
 rule build_and_validate_all:
     input:
-        "validation/"+RDIR+"installed_generation_capacity_per_country.xlsx",    # validate_database
+        "database/"+RDIR+"nordics.sqlite",                                      # build_database
         "psse/"+RDIR+"nordics.sav",                                             # build_psse
+        "validation/"+RDIR+"installed_generation_capacity_per_country.xlsx",    # validate_database
+        "psse/"+RDIR+"nordics.sld",                                             # build_psse_slider
         "validation/"+RDIR+"psse_cross_border_flow.xlsx",                       # validate_psse
 
 rule build_psse_network:
@@ -14,18 +17,30 @@ rule build_psse_network:
     input:
         database="database/" + RDIR + "nordics.sqlite",
     output:
-        loc="psse/"+RDIR+"nordics.loc",
         sav="psse/"+RDIR+"nordics.sav",
-        sld="psse/"+RDIR+"nordics.sld"
     log:
         "logs/"+RDIR+"build_psse_nordics.log",
     script:
         "scripts/build_psse_network.py"
 
+
+rule build_psse_slider:
+    name: "Build PSS/E slider"
+    input:
+        database="database/" + RDIR + "nordics.sqlite",
+        sav="psse/" + RDIR + "nordics.sav",
+    output:
+        loc="psse/"+RDIR+"nordics.loc",
+        sld="psse/"+RDIR+"nordics.sld"
+    log:
+        "logs/"+RDIR+"build_psse_slider.log",
+    script:
+        "scripts/build_psse_slider.py"
+
 rule validate_database:
     name: "Validate Database"
     input:
-        database="database/" + RDIR + "nordics.sqlite",
+        database="database/" + RDIR + "nordics_raw.sqlite",
         entsoe_cross_border_flow="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
         entsoe_capacities="data/" + RDIR + "entsoe-transparency/installed_capacity.csv",
         entsoe_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv",
@@ -64,6 +79,8 @@ rule retrieve_installed_capacity:
 
 rule retrieve_actual_generation:
     name: "Retrieve actual generation"
+    input:
+        generation_sweden="data/"+RDIR+"actual_generation_sweden.xlsx",
     output:
         actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv"
     log:
@@ -93,13 +110,13 @@ rule retrieve_cross_border_flow:
 rule build_database:
         name: "Build database"
         input:
-            network="input/" + RDIR + "elec.nc",
+            network="input/" + RDIR_INPUT + "elec.nc",
             actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv",
             cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
             load = "data/" + RDIR + "entsoe-transparency/load.csv",
         output:
             database = "database/" + RDIR + "nordics.sqlite",
-            database_raw = "database/raw/" + RDIR + "nordics.sqlite",
+            database_raw = "database/" + RDIR + "nordics_raw.sqlite",
         log:
             "logs/" + RDIR + "build_database.log",
         script:
@@ -108,7 +125,7 @@ rule build_database:
 rule load_duration_curve:
         name: "Load duration curve"
         input:
-            network = "input/" + RDIR + "elec.nc",
+            network = "input/" + RDIR_INPUT + "elec.nc",
         output:
             load_duration_curve="data/" + RDIR + "network_load_duration_curve.png",
         log:

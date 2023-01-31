@@ -52,8 +52,8 @@ def validate_generation_capacity(c: Connection, country: bool) -> None:
             df['difference'] = df['model'] - df['entsoe']
             df['percentage'] = df['model'] / df['entsoe']
 
-            totals["model"] = totals["model"] + df["model"]
-            totals["entsoe"] = totals["entsoe"] + df["entsoe"]
+            totals["model"] += df["model"]
+            totals["entsoe"] += df["entsoe"]
 
             df.to_excel(writer, sheet_name=area)
 
@@ -95,32 +95,41 @@ def validate_actual_generation(c: Connection, country: bool) -> None:
     empty_df = get_empty_generation_df(snakemake.config["generation"])
 
     totals = empty_df.copy()
+    totals['model_before_scaling'] = 0
     totals["model"] = 0
     totals["entsoe"] = 0
 
     entsoe_generation = pd.read_csv(snakemake.input.entsoe_generation).set_index('type')
-    model_generation = get_generation_totals('p_set', groupby, c)
+    model_generation_before_scaling = get_generation_totals('p_set_before_scaling', groupby, c)
+    model_generation_after_scaling = get_generation_totals('p_set', groupby, c)
 
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         for area in areas:
             df = empty_df.copy()
-            df['model'] = model_generation[area]
+            df['model_before_scaling'] = model_generation_before_scaling[area]
+            df['model'] = model_generation_after_scaling[area]
             df['entsoe'] = entsoe_generation[area]
             df.fillna(0, inplace=True)
 
             df.loc['total'] = df.sum(axis=0)
 
-            df['difference'] = df['model'] - df['entsoe']
-            df['percentage'] = df['model'] / df['entsoe']
+            df['difference_scaling'] = df['model'] - df['model_before_scaling']
+            df['percentage_scaling'] = df['model'] / df['model_before_scaling']
+            df['difference_entsoe'] = df['model'] - df['entsoe']
+            df['percentage_entsoe'] = df['model'] / df['entsoe']
 
             df.to_excel(writer, sheet_name=area)
 
-            totals["model"] = totals["model"] + df["model"]
-            totals["entsoe"] = totals["entsoe"] + df["entsoe"]
+            totals["model_before_scaling"] += df["model_before_scaling"]
+            totals["model"] += df["model"]
+            totals["entsoe"] += df["entsoe"]
 
         totals.loc['total'] = totals.sum(axis=0)
-        totals['difference'] = totals['model'] - totals['entsoe']
-        totals['percentage'] = totals['model'] / totals['entsoe']
+        totals['difference_scaling'] = totals['model'] - totals['model_before_scaling']
+        totals['percentage_scaling'] = totals['model'] / totals['model_before_scaling']
+        totals['difference_entsoe'] = totals['model'] - totals['entsoe']
+        totals['percentage_entsoe'] = totals['model'] / totals['entsoe']
+
         totals.to_excel(writer, sheet_name='Total')
 
         # format sheets
@@ -128,8 +137,10 @@ def validate_actual_generation(c: Connection, country: bool) -> None:
         percent_format = writer.book.add_format({'num_format': '0%'})
         for area in writer.sheets:
             worksheet = writer.sheets[area]
-            worksheet.set_column(1, 3, None, number_format)
-            worksheet.set_column(4, 4, None, percent_format)
+            worksheet.set_column(1, 4, None, number_format)
+            worksheet.set_column(5, 5, None, percent_format)
+            worksheet.set_column(6, 6, None, number_format)
+            worksheet.set_column(7, 7, None, percent_format)
 
 
 if __name__ == "__main__":

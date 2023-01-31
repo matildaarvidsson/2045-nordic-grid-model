@@ -40,7 +40,7 @@ def add_bus(bus: pd.Series, country_id: int, has_generation_units: bool, config:
             bus.symbol[0:12],
         )
     except Exception as e:
-        logger.debug(bus)
+        logger.info(bus)
         raise e
 
 
@@ -81,7 +81,7 @@ def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, c
             _s,
         )
     except Exception as e:
-        logger.debug(machine)
+        logger.info(machine)
         raise e
 
     return True
@@ -92,7 +92,7 @@ def add_load(load: pd.Series, bus: pd.Series, id: int, in_service: bool):
     try:
         add_load_psse(int(load.bus), str(id), load.p_set, load.q_set, in_service=in_service, scalable=True)
     except Exception as e:
-        logger.debug(load)
+        logger.info(load)
         raise e
 
 
@@ -100,7 +100,7 @@ def add_external_link(external_link: pd.Series, bus: pd.Series, id: int, in_serv
     try:
         add_load_psse(int(external_link.bus), 'E'+str(id), external_link.p_set, external_link.q_set, external_link.link, in_service=in_service, scalable=False, area=area)
     except Exception as e:
-        logger.debug(external_link)
+        logger.info(external_link)
         raise e
 
 
@@ -134,7 +134,7 @@ def add_branch(line: pd.Series, id: int):
             "",
         )
     except Exception as e:
-        logger.debug(line)
+        logger.info(line)
         raise e
 
 
@@ -152,7 +152,7 @@ def add_transformer(transformer: pd.Series, id: int):
             _s,
         )
     except Exception as e:
-        logger.debug(transformer)
+        logger.info(transformer)
         raise e
 
 
@@ -185,54 +185,11 @@ def add_link(link: pd.Series, bus0: pd.Series, bus1: pd.Series, config: dict):
             raise e
 
 
-def draw_bus(bus: pd.Series):
-    psspy.updatebuslocdiagfile()
-    try:
-        psspy.growdiagram_2(
-            0,
-            1,
-            ["BU   {0}".format(bus.name)],
-            _f,
-            _f,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        )
-    except Exception as e:
-        logger.debug(bus)
-        raise e
-
-
-def create_loc_file(all_buses: pd.DataFrame, filename: str):
-    lines = [
-        "GEOPHYSICAL LATLON\n",
-        "/BusID, Y location, X location\n",
-    ]
-
-    all_buses.apply(lambda bus: lines.append("{id}, {lat}, {lon}, ,\n".format(id=bus.name, lat=bus.y, lon=bus.x)), axis=1)
-
-    logger.info('Saving ' + filename)
-    f = open(filename, "w")
-    f.writelines(lines)
-    f.close()
-
-    psspy.openbuslocfile(filename)
-    psspy.updatebuslocdiagfile()
-
-
-# def disconnect_islands():
-#     error, buses = psspy.tree(1)     # find island
-#     print(buses)
-#     throw_on_psspy_error(error)
-#
-#     error, buses = psspy.tree(2, 1)  # disconnect island
-#     print(buses)
-#     throw_on_psspy_error(error)
-
-
 def disconnect_bus(bus: pd.Series):
     try:
         psspy.dscn(int(bus.name))
     except Exception as e:
-        logger.debug(bus)
+        logger.info(bus)
         raise e
 
 
@@ -280,24 +237,13 @@ if __name__ == "__main__":
     # create empty .sav
     psspy.newcase_2([0, 1], snakemake.config["M_base"], 50.0, "Nordics grid", "By DNV (Niek Brekelmans)")
 
-    # create empty .sld
-    psspy.newdiagfile()
-
-    # from recorded action; sets the colors of voltage levels to distinguish between 400 kV, 300 kV and 220 kV
-    psspy.setdiagresvrcs_2(2, 1, [1, 1, 1, 1, 1, 1, 1, 1], [-1, -1, -1, -1, -1, -1, -1, -1],
-                           [0.0, 13.8, 18.0, 20.0, 220.0, 300.0, 380.0], [0, 255, 0, 0, 255, 64, 0, 0],
-                           [0, 0, 0, 255, 0, 128, 0, 0], [0, 0, 255, 0, 128, 128, 219, 255], 1, 1, 63736, [64, 0, 64],
-                           [0, 0, 0], [255, 0, 255], [0, 255, 0], [255, 0, 0], _i, _i, _i, _i, [_i, 0, 0])
-
-    bidding_zones = snakemake.config["bidding_zones"]
-
     # Load all data from the sqlite database
     c = sqlite3.connect(snakemake.input.database)
     buses = pd.read_sql("SELECT * FROM buses", con=c).set_index('Bus')
 
-    generators = pd.read_sql("SELECT * FROM generators", con=c).set_index('Generator')
-    storage_units = pd.read_sql("SELECT * FROM storage_units", con=c).set_index('StorageUnit')
-    loads = pd.read_sql("SELECT * FROM loads", con=c).set_index('Load')
+    generators = pd.read_sql("SELECT * FROM generators WHERE p_set > 0", con=c).set_index('Generator')
+    storage_units = pd.read_sql("SELECT * FROM storage_units WHERE p_set > 0", con=c).set_index('StorageUnit')
+    loads = pd.read_sql("SELECT * FROM loads WHERE p_set > 0", con=c).set_index('Load')
     shunt_impedances = pd.read_sql("SELECT * FROM shunt_impedances", con=c).set_index('ShuntImpedance')
     external_links = pd.read_sql("SELECT * FROM external_links", con=c).set_index('ExternalLink')
 
@@ -351,22 +297,22 @@ if __name__ == "__main__":
             if add_machine(storage_unit, bus, index, status, snakemake.config):
                 index += 1
 
+        index = 1
         for _, load in loads_bus.iterrows():
             add_load(load, bus, index, status)
             index += 1
 
+        index = 1
         for _, shunt_impedance in shunt_impedances_bus.iterrows():
             add_shunt_impedance(shunt_impedance, bus, index, status)
             index += 1
 
+        index = 1
         for _, external_link in external_links_bus.iterrows():
             bus_outside = buses.loc[external_link.bus_outside]
             area = all_bidding_zones[all_bidding_zones == bus_outside.bidding_zone].index[0] + 1
             add_external_link(external_link, bus, index, status, area)
             index += 1
-
-    # a .loc file contains the coordinates of all buses to draw the SLD diagram geographically correct
-    create_loc_file(buses, snakemake.output.loc)
 
     logger.info('Adding lines')
     # indexes are meant to find a 'free' id (for both buses) when connecting 2 buses
@@ -411,16 +357,10 @@ if __name__ == "__main__":
     for i, country in enumerate(all_bidding_zones, start=1):
         add_area(i, country)
 
-    # draw the sld
-    logger.info('Drawing buses (can take some time)')
-    buses.apply(draw_bus, axis=1)
-
     logger.info('Disabling excluded buses')
     for _, bus in buses.iterrows():
         if not bus_included(bus, snakemake.config) and bus.name in buses_in_psse:
             disconnect_bus(bus)
-
-    psspy.updatebuslocdiagfile()
 
     # run load flow
     logger.info('Solving using Newton-Raphson (flat start)')
@@ -429,9 +369,6 @@ if __name__ == "__main__":
     # save case and diagram to file
     logger.info('Saving ' + snakemake.output.sav)
     error = psspy.save(snakemake.output.sav)
-
-    logger.info('Saving ' + snakemake.output.sld)
-    psspy.savediagfile(snakemake.output.sld)
 
     # close PSS/E
     logger.info('Closing PSS/E')

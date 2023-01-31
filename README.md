@@ -140,3 +140,12 @@ Some tips for using `snakemake`
 - The `snakemake` command always requires the `-c` flag with the amount of parallel cores it can use. By default, use `all` to run it fastest.
 - If you do not want to run the whole workflow (e.g. to test something), for instance to only build the database, write the output file you want: `snakemake -c all database/2020-high/nordics.sqlite`. This stops the workflow after building the database.
 - Snakemake will only run a certain script if its input files are newer than the output files. This speeds it up after the first run
+
+### Losses
+Since the load data includes losses, the (estimated) losses need to be subtracted from the load per bidding zone.
+To get a good approximation of the losses, the configuration needs to be set by making an initial guess for the losses, building the PSS/E model, and solving the load flow to get the actual losses.
+By updating the guessed losses with the resulting losses iteratively, it will converge to the right values in about 2/3 iterations.
+
+The losses can be retrieved per bidding zone by opening the PSS/E file and creating a 'Area/Zone/Owner Total Report' ![aoz-icon.png](aoz-icon.png) for all areas.
+
+If `snakemake` gives 'nothing to be done' after the first iteration, delete the database and PSS/E files and run it again. 

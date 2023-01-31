@@ -1,0 +1,151 @@
+run:
+  input: "2020"
+  name: "2020-high" # use this to keep track of runs with different settings
+
+logging:
+  level: INFO
+  format: '%(levelname)s:%(name)s:%(message)s'
+
+countries: ['DK', 'FI', 'NO', 'SE']
+bidding_zones: ['DK_2', 'FI', 'NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5', 'SE_1', 'SE_2', 'SE_3', 'SE_4']
+
+bidding_zones_in_country:
+  'DK': ['DK_1', 'DK_2']
+  'FI': ['FI']
+  'NO': ['NO_1', 'NO_2', 'NO_3', 'NO_4', 'NO_5']
+  'SE': ['SE_1', 'SE_2', 'SE_3', 'SE_4']
+
+M_base: 100 # power base for p.u. calculations
+
+generator_p_min: 5  # MW
+
+# This is an estimate that should be improved iteratively
+losses:  # From PSS/E
+  DK_2: 3.1292
+  FI: 199.8202
+  NO_1: 130.3866
+  NO_2: 290.9430
+  NO_3: 39.6732
+  NO_4: 41.1647
+  NO_5: 50.8565
+  SE_1: 47.5572
+  SE_2: 476.5150
+  SE_3: 539.9645
+  SE_4: 105.2305
+
+
+# Watch out with availability of data in ENTSO-E
+# e.g. Between 14.10.2019 07:00 and 03.03.2020 10:00, there is no data on cross-flow NO1-NO2
+snapshot: '2020-03-04 18:00:00'  # UTC -> 19:00 in our timezone
+
+build_network:
+  scheduled_voltage: 1.025  # pu
+  exclude_under_construction: False
+  supress_psse_output: True
+  slack_buses: ["6591"]  # centralized nuclear plant
+#  slack_buses: ["7003"]  # biggest hydro plant in SE_1
+
+database:
+  buses:
+    - v_nom
+    - symbol
+    - under_construction
+    - x
+    - y
+    - carrier
+    - country
+    - bidding_zone
+    - in_synchronous_network
+  generators:
+    - bus
+    - name
+    - type
+    - p_nom
+    - p_nom_max
+    - p_nom_min
+    - p_max_pu
+    - p_min_pu
+    - p_set
+    - q_set
+  storage_units:
+    - bus
+    - type
+    - p_nom
+    - p_nom_max
+    - p_max_pu
+    - p_min_pu
+    - p_set
+    - q_set
+  loads:
+    - bus
+    - p_set
+    - q_set
+  shunt_impedances:
+    - bus
+    - g_pu
+    - b_pu
+  lines:
+    - bus0
+    - bus1
+    - num_parallel
+    - length
+    - under_construction
+    - s_max_pu
+    - s_nom
+    - x_pu
+    - r_pu
+    - g_pu
+    - b_pu
+  links:
+    - bus0
+    - bus1
+    - length
+    - under_construction
+    - p_nom
+    - p_set
+  transformers:
+    - bus0
+    - bus1
+    - s_nom
+    - x_pu
+    - r_pu
+    - g_pu
+    - b_pu
+  external_links:
+    - bus
+    - bus_outside
+    - link
+    - p_set
+    - q_set
+
+generation:
+  pypsa_map:
+    PHS: hydro
+    hydro: hydro
+    ror: hydro
+    nuclear: nuclear
+    onwind: wind-onshore
+    offwind-dc: wind-offshore
+    solar: solar
+    offwind-ac: wind-offshore
+
+  entsoe_map:
+    Nuclear: nuclear
+    Wind Onshore: wind-onshore
+    Geothermal: other
+    Hydro Run-of-river and poundage: hydro
+    Hydro Water Reservoir: hydro
+    Wind Offshore: wind-offshore
+    Hydro Pumped Storage: hydro
+    Solar: solar
+
+# https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html#_authentication_and_authorisation
+entsoe:
+  security_token: fe5dbb25-46fd-4a4b-a19c-d3d0772e00d5
+
+
+#cross_border_flows:
+#  'FI': ['EE', 'NO_4', 'RU', 'SE_1', 'SE_3']
+#  'NO': ['DK_1', 'DE', 'NL', 'GB', 'SE']
+#  'SE': ['DK_1', 'DK_2', 'DE', 'LT', 'PL']
+#  'DK_2': ['DK_1', 'DE_AT_LU', 'DE_LU']

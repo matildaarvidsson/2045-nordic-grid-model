@@ -1,5 +1,6 @@
 run:
-  name: "2020-high" # use this to keep track of runs with different settings
+  input: "2015"
+  name: "2015-high" # use this to keep track of runs with different settings
 
 logging:
   level: INFO
@@ -18,17 +19,31 @@ M_base: 100 # power base for p.u. calculations
 
 generator_p_min: 5  # MW
 
-losses: 1700  # MW
+# This is an estimate that should be improved iteratively
+losses:  # From PSS/E
+  DK_2: 3.8310
+  FI: 180.5145
+  NO_1: 188.1090
+  NO_2: 313.8814
+  NO_3: 34.0093
+  NO_4: 25.3387
+  NO_5: 85.6819
+  SE_1: 29.5252
+  SE_2: 244.5004
+  SE_3: 310.4304
+  SE_4: 57.4847
+
 
 # Watch out with availability of data in ENTSO-E
 # e.g. Between 14.10.2019 07:00 and 03.03.2020 10:00, there is no data on cross-flow NO1-NO2
-snapshot: '2020-03-04 18:00:00'  # UTC -> 19:00 in our timezone
+snapshot: '2015-02-14 16:00:00'
 
 build_network:
-  scheduled_voltage: 1.0  # pu (410 kV)
+  scheduled_voltage: 1.025  # pu
   exclude_under_construction: False
   supress_psse_output: True
   slack_buses: ["6591"]  # centralized nuclear plant
+#  slack_buses: ["7003"]  # biggest hydro plant in SE_1
 
 database:
   buses:

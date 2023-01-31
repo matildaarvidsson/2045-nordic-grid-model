@@ -4,10 +4,10 @@ digraph snakemake_dag {
     edge[penwidth=2, color=grey];
         1[label = "Validate Database", color = "0.20 0.6 0.85", style="rounded"];
         2[label = "Build database", color = "0.53 0.6 0.85", style="rounded"];
-        3[label = "Retrieve actual generation", color = "0.13 0.6 0.85", style="rounded,dashed"];
-        4[label = "Retrieve cross-border flow", color = "0.40 0.6 0.85", style="rounded,dashed"];
-        5[label = "Retrieve load", color = "0.47 0.6 0.85", style="rounded,dashed"];
-        6[label = "Retrieve installed capacity", color = "0.00 0.6 0.85", style="rounded,dashed"];
+        3[label = "Retrieve actual generation\n(ENTSO-E)", color = "0.13 0.6 0.85", style="rounded,dashed"];
+        4[label = "Retrieve cross-border flow\n(ENTSO-E)", color = "0.40 0.6 0.85", style="rounded,dashed"];
+        5[label = "Retrieve load\n(ENTSO-E)", color = "0.47 0.6 0.85", style="rounded,dashed"];
+        6[label = "Retrieve installed capacity\n(ENTSO-E)", color = "0.00 0.6 0.85", style="rounded,dashed"];
         7[label = "Build PSS/E", color = "0.33 0.6 0.85", style="rounded"];
         8[label = "Validate PSS/E", color = "0.60 0.6 0.85", style="rounded"];
         2 -> 1

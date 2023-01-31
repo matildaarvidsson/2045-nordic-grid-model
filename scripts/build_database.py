@@ -106,11 +106,13 @@ def set_generator_p_set(n: Network, config: dict):
     p_max_generators[n.generators["p_nom"] < config["generator_p_min"]] = 0
 
     n.generators["p_set"] = p_max_generators
+    n.generators["p_set_before_scaling"] = p_max_generators
 
     p_max_storage = n.storage_units["p_nom"] * n.storage_units["p_max_pu"]
     p_max_storage[n.storage_units["p_nom"] < config["generator_p_min"]] = 0
 
     n.storage_units["p_set"] = p_max_storage
+    n.storage_units["p_set_before_scaling"] = p_max_storage
 
 
 def create_case_database(n: Network, components: dict[str, str], external_links: pd.DataFrame, db_raw: str, db: str, config: dict):
@@ -142,8 +144,8 @@ def apply_parameter_corrections(n: Network, config: dict):
     n.links.loc['14806', "under_construction"] = True
     n.links.loc['14806', "p_nom"] = 0
 
-    # move 3/4 of load from one bus to another to fix loadflow problems
-    factor = 1/2
+    # move part of load from one bus to another to fix loadflow problems
+    factor = 7/10
     total_load = n.loads.loc['7010', 'p_set']
 
     n.loads.loc['7010', 'p_set'] = total_load * (1-factor)
@@ -209,8 +211,53 @@ def insert_external_links(external_links: dict[tuple, list[tuple]], external_flo
     return df
 
 
+def set_link_p_set(n: Network, cross_border_flow: pd.DataFrame):
+    n.links["bidding_zone0"] = n.links["bus0"].map(lambda bus: n.buses.loc[bus, "bidding_zone"])
+    n.links["bidding_zone1"] = n.links["bus1"].map(lambda bus: n.buses.loc[bus, "bidding_zone"])
+
+    se_fi_links = n.links[(n.links["bidding_zone0"] == 'SE_3') & (n.links["bidding_zone1"] == "FI")]
+    se_fi_p_nom = pd.to_numeric(se_fi_links["p_nom"], errors='coerce')
+    se_fi_capacity = se_fi_p_nom.sum()
+    se_fi_flow = cross_border_flow.loc["FI", "SE_3"]
+    n.links.loc[se_fi_links.index, "p_set"] = se_fi_p_nom / se_fi_capacity * se_fi_flow
+
+
+def scale_generation_per_bidding_zone(n: Network, entsoe_generation: pd.DataFrame):
+    all_generation_units = pd.concat([n.generators, n.storage_units])
+
+    # set bidding_zone and in_synchronous_network from bus it's attached to
+    all_generation_units["in_synchronous_network"] = all_generation_units["bus"].map(
+        lambda bus: n.buses.loc[bus, 'in_synchronous_network'])
+
+    # filter
+    generation_units = all_generation_units[all_generation_units["in_synchronous_network"] == 1]
+    generation_units = generation_units[generation_units["p_set"] > 0]
+
+    # find scale factor per bidding_zone and generation type
+    model_generation = generation_units.groupby(['bidding_zone', 'type'])['p_set'].sum().unstack(level=0)
+
+    scale_factors = (entsoe_generation / model_generation).fillna(0)
+
+    # scale factors to compensate for entsoe data errors
+    # taken from ENTSO-E TP review paper
+    scale_factors.loc['wind-onshore', 'DK_2'] *= 1.05
+    scale_factors.loc['wind-offshore', 'DK_2'] *= 1.05
+    scale_factors.loc['wind-onshore', 'FI'] *= 1.1
+    scale_factors.loc['wind-offshore', 'FI'] *= 1.1
+
+    # Mismatch in Sweden (2017 paper)
+    # scale_factors['SE_1'] *= 1.04
+    # scale_factors['SE_2'] *= 1.04
+    # scale_factors['SE_3'] *= 1.04
+    # scale_factors['SE_4'] *= 1.04
+
+    # scale p_set of all generation, including hydro which is in storage_units
+    n.generators["p_set"] = n.generators.apply(lambda unit: scale_generation_unit(unit, scale_factors), axis=1)
+    n.storage_units["p_set"] = n.storage_units.apply(lambda unit: scale_generation_unit(unit, scale_factors), axis=1)
+
+
 def scale_generation_unit(generation_unit: pd.Series, scale: pd.DataFrame):
-    if generation_unit.bidding_zone not in scale_factors:
+    if generation_unit.bidding_zone not in scale:
         return generation_unit.p_set
 
     return generation_unit.p_set * scale.loc[generation_unit.type, generation_unit.bidding_zone]
@@ -229,11 +276,29 @@ def scale_load_per_bidding_zone(n: Network, load_per_bidding_zone: pd.Series):
         lambda x: x * (load_per_bidding_zone[x.name] if (x.name in load_per_bidding_zone) else 0)
     )
 
+    dk_2 = n.loads.loc[n.loads['bidding_zone'] == 'DK_2']
+    total_dk2 = dk_2["p_set_country"].sum()
+
+    # update only DK2 because it's different
+    n.loads.loc[n.loads["bidding_zone"] == 'DK_2', "p_set"] = n.loads["p_set_country"] / total_dk2 * load_per_bidding_zone['DK_2']
+
 
 def remove_load_generation_outside_sync_area(n: Network):
     n.loads.loc[n.loads["bus"].map(lambda bus: n.buses.loc[bus, "in_synchronous_network"]) == 0, 'p_set'] = 0
     n.generators.loc[n.generators["bus"].map(lambda bus: n.buses.loc[bus, "in_synchronous_network"]) == 0, 'p_set'] = 0
     n.storage_units.loc[n.storage_units["bus"].map(lambda bus: n.buses.loc[bus, "in_synchronous_network"]) == 0, 'p_set'] = 0
+
+
+def subtract_losses_from_loads(n: Network, config: dict):
+    losses = pd.Series(config["losses"])
+    load_per_bidding_zone = n.loads.groupby('bidding_zone')["p_set"].sum()
+
+    scale_factor = (load_per_bidding_zone - losses) / load_per_bidding_zone
+
+    n.loads["scale_factor_losses"] = n.loads["bidding_zone"].map(
+        lambda bidding_zone: scale_factor.get(bidding_zone, 1.0))
+    n.loads["p_set_with_losses"] = n.loads["p_set"]
+    n.loads["p_set"] = n.loads["scale_factor_losses"] * n.loads["p_set_with_losses"]
 
 
 
@@ -276,8 +341,15 @@ if __name__ == "__main__":
     logger.info('Adding in_synchronous_area data')
     map_included_buses(n, snakemake.config)
 
-    logger.info('Adding bidding_zone info (for DK)')
+    logger.info('Adding bidding_zone info')
     set_bidding_zone(n, snakemake.config, snapshot)
+
+    # set country and biddingzone columns
+    n.generators["country"] = n.generators["bus"].map(lambda bus: n.buses.loc[bus, 'country'])
+    n.storage_units["country"] = n.storage_units["bus"].map(lambda bus: n.buses.loc[bus, 'country'])
+
+    n.generators["bidding_zone"] = n.generators["bus"].map(lambda bus: n.buses.loc[bus, 'bidding_zone'])
+    n.storage_units["bidding_zone"] = n.storage_units["bus"].map(lambda bus: n.buses.loc[bus, 'bidding_zone'])
 
     logger.info('Setting line impedance')
     set_line_impedance_from_linetypes(n, snakemake.config)
@@ -288,105 +360,28 @@ if __name__ == "__main__":
     logger.info('Setting generation type')
     set_generation_type(n, snakemake.config)
 
-    #
-    # find and add external links
-    #
     logger.info('Finding and adding interconnection links')
-
     cross_border_flow = pd.read_csv(snakemake.input.cross_border_flows, index_col=0)
-
     external_links = get_external_links(cross_border_flow, n, snakemake.config)
     external_links = insert_external_links(external_links, cross_border_flow)
 
-    #
-    # add link p_set inside nordics
-    # !!!! This is manual, if more HVDC links between countries arise, manual fix required !!!!
-    #
+    # !!!! This is manual, if more HVDC links between countries or biddingzones arise, manual fix required !!!!
+    logger.info('Setting p_set for inter-area HVDC-links')
+    set_link_p_set(n, cross_border_flow)
 
-    n.links["bidding_zone0"] = n.links["bus0"].map(lambda bus: n.buses.loc[bus, "bidding_zone"])
-    n.links["bidding_zone1"] = n.links["bus1"].map(lambda bus: n.buses.loc[bus, "bidding_zone"])
-
-    se_fi_links = n.links[(n.links["bidding_zone0"] == 'SE_3') & (n.links["bidding_zone1"] == "FI")]
-    se_fi_p_nom = pd.to_numeric(se_fi_links["p_nom"], errors='coerce')
-    se_fi_capacity = se_fi_p_nom.sum()
-    se_fi_flow = cross_border_flow.loc["FI", "SE_3"]
-    n.links.loc[se_fi_links.index, "p_set"] = se_fi_p_nom / se_fi_capacity * se_fi_flow
-
-    #
-    # scale generation per bidding_zone and per generation type with entsoe data
-    #
-    logger.info('Scaling generation')
-
-    n.generators["country"] = n.generators["bus"].map(lambda bus: n.buses.loc[bus, 'country'])
-    n.storage_units["country"] = n.storage_units["bus"].map(lambda bus: n.buses.loc[bus, 'country'])
-
-    n.generators["bidding_zone"] = n.generators["bus"].map(lambda bus: n.buses.loc[bus, 'bidding_zone'])
-    n.storage_units["bidding_zone"] = n.storage_units["bus"].map(lambda bus: n.buses.loc[bus, 'bidding_zone'])
-
-    all_generation_units = pd.concat([n.generators, n.storage_units])
-
-    # set bidding_zone and in_synchronous_network from bus it's attached to
-    all_generation_units["in_synchronous_network"] = all_generation_units["bus"].map(
-        lambda bus: n.buses.loc[bus, 'in_synchronous_network'])
-
-    # filter
-    generation_units = all_generation_units[all_generation_units["in_synchronous_network"] == 1]
-    generation_units = generation_units[generation_units["p_set"] >= 0]
-
-    # actual generation in sweden is only available for the whole country
-    sweden = snakemake.config['bidding_zones_in_country']['SE']
-    generation_units.loc[generation_units['bidding_zone'].isin(sweden), 'bidding_zone'] = 'SE'
-
-    # find scale factor per bidding_zone and generation type
+    logger.info('Scaling generation per bidding zone')
     entsoe_generation = pd.read_csv(snakemake.input.actual_generation).set_index('type')
-    model_generation = generation_units.groupby(['bidding_zone', 'type'])['p_set'].sum().unstack(level=0)
+    scale_generation_per_bidding_zone(n, entsoe_generation)
 
-    scale_factors = (entsoe_generation / model_generation).fillna(0)
-    for bidding_zone_in_sweden in sweden:
-        scale_factors[bidding_zone_in_sweden] = scale_factors['SE']
-
-    # scale p_set of all generation, including hydro which is in storage_units
-    n.generators["p_set"] = n.generators.apply(lambda unit: scale_generation_unit(unit, scale_factors), axis=1)
-    n.storage_units["p_set"] = n.storage_units.apply(lambda unit: scale_generation_unit(unit, scale_factors), axis=1)
-
-    #
-    # Set p_set to 0 outside sync area
-    #
+    logger.info('Removing generation and load outside Nordic area')
     remove_load_generation_outside_sync_area(n)
 
-    #
-    # Scale load per bidding zone
-    #
     logger.info('Scaling load per bidding zone')
     entsoe_load = pd.read_csv(snakemake.input.load, index_col=0)['load']
     scale_load_per_bidding_zone(n, entsoe_load)
 
-    #
-    # Imbalance per country
-    # The imbalance per country is: load - generation + external_flows since load includes losses
-    #
-    # total_flows = cross_border_flow.sum(axis=1).fillna(0).to_frame('flow')
-    # total_flows['country'] = total_flows.index.str[:2]
-    # total_flows_country = total_flows.groupby('country')['flow'].sum()
-    #
-    # generation = n.generators.groupby('country')['p_set'].sum().fillna(0)
-    # storage = n.storage_units.groupby('country')['p_set'].sum().fillna(0)
-    # all_generation = (generation+storage).fillna(generation)
-    # load = n.loads.groupby('country')['p_set'].sum().fillna(0)
-    #
-    # imbalance = (load + total_flows_country - all_generation).dropna()
-    # scale_factors = ((all_generation + imbalance) / all_generation).fillna(1)
-    #
-    # # scale generation
-    # n.generators['p_set'] = n.generators.groupby('country', group_keys=False)['p_set'].apply(lambda x, factor: x * factor[x.name], scale_factors)
-    # n.storage_units['p_set'] = n.storage_units.groupby('country', group_keys=False)['p_set'].apply(lambda x, factor: x * factor[x.name], scale_factors)
-
-    #
-    # Load data includes losses, but it shouldn't
-    #
     logger.info('Scaling load to compensate for losses')
-    scale_factor = (n.loads["p_set"].sum() - snakemake.config["losses"]) / n.loads["p_set"].sum()
-    n.loads["p_set"] = scale_factor * n.loads["p_set"]
+    subtract_losses_from_loads(n, snakemake.config)
 
     # creates the database with useful information and a 'raw' database with more information
     logger.info('Saving to database')

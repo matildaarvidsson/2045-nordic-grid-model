@@ -300,6 +300,11 @@ def subtract_losses_from_loads(n: Network, config: dict):
     n.loads["p_set_with_losses"] = n.loads["p_set"]
     n.loads["p_set"] = n.loads["scale_factor_losses"] * n.loads["p_set_with_losses"]
 
+#Adding a manual load
+def add_manual_loads(n, manual_loads):
+    n.loads = pd.concat([n.loads, manual_loads])
+    n.loads.index.names = ['Load']
+
 
 
 if __name__ == "__main__":
@@ -382,6 +387,11 @@ if __name__ == "__main__":
 
     logger.info('Scaling load to compensate for losses')
     subtract_losses_from_loads(n, snakemake.config)
+
+    logger.info('Adding manual loads')
+    manual_loads = pd.read_excel(snakemake.input.manual_loads, index_col=0)
+
+    add_manual_loads(n, manual_loads)
 
     # creates the database with useful information and a 'raw' database with more information
     logger.info('Saving to database')

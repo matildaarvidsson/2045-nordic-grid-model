@@ -114,6 +114,7 @@ rule build_database:
             actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv",
             cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
             load = "data/" + RDIR + "entsoe-transparency/load.csv",
+            manual_loads = "manual-data/" + RDIR + "loads.xlsx",
         output:
             database = "database/" + RDIR + "nordics.sqlite",
             database_raw = "database/" + RDIR + "nordics_raw.sqlite",

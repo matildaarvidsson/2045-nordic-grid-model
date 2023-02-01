@@ -98,7 +98,7 @@ git clone https://github.com/niekbr/dnv-nordics-model.git
 Similar to PyPSA-Eur, create a conda environment, which automatically installs dependencies.
 
 ``` bash
-conda env create -f envs/environment.yaml
+conda env create -f environment.yaml
 conda activate dnv-nordics-model
 ```
 

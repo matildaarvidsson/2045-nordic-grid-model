@@ -149,3 +149,4 @@ By updating the guessed losses with the resulting losses iteratively, it will co
 The losses can be retrieved per bidding zone by opening the PSS/E file and creating a 'Area/Zone/Owner Total Report' ![aoz-icon.png](aoz-icon.png) for all areas.
 
 If `snakemake` gives 'nothing to be done' after the first iteration, delete the database and PSS/E files and run it again. 
+"# thesis-nordics-model" 

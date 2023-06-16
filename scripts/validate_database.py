@@ -22,7 +22,6 @@ def get_generation_totals(column: str, group_by: str, c: Connection) -> pd.DataF
 
     # filter out not in nordics sync network
     generation_units = generation_units[generation_units["in_synchronous_network"] == True]
-
     return generation_units.groupby([group_by, 'type'])[column].sum().unstack(level=0)
 
 

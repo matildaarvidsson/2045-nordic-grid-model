@@ -20,7 +20,11 @@ def add_area(id: int, name: str):
     psspy.area_data(id, _i, [_f, _f], name)
 
 
-def add_bus(bus: pd.Series, country_id: int, has_generation_units: bool, config: dict):
+def add_region(id: int, LnNamn: str):
+    psspy.zone_data(id, LnNamn)
+
+
+def add_bus(bus: pd.Series, country_id: int, LnNamn_id: int, has_generation_units: bool, config: dict):
     if bus.carrier == 'DC' or bus.v_nom is None:
         return
 
@@ -35,13 +39,21 @@ def add_bus(bus: pd.Series, country_id: int, has_generation_units: bool, config:
         psspy.bus_data_4(
             int(bus.name),
             0,
-            [code, country_id, _i, _i],
+            [code, country_id, LnNamn_id, _i],
             [bus.v_nom, _f, _f, _f, _f, _f, _f],
             bus.symbol[0:12],
         )
     except Exception as e:
         logger.info(bus)
         raise e
+
+    psspy.bus_chng_4(6875, 0, [2, _i, _i, _i], [301.0, _f, _f, _f, _f, _f, _f], _s)
+    psspy.bus_chng_4(6667, 0, [2, _i, _i, _i], [301.0, _f, _f, _f, _f, _f, _f], _s)
+    psspy.bus_chng_4(6671, 0, [2, _i, _i, _i], [301.0, _f, _f, _f, _f, _f, _f], _s)
+    psspy.bus_chng_4(6751, 0, [2, _i, _i, _i], [301.0, _f, _f, _f, _f, _f, _f], _s)
+    psspy.bus_chng_4(6699, 0, [2, _i, _i, _i], [301.0, _f, _f, _f, _f, _f, _f], _s)
+    psspy.bus_chng_4(6706, 0, [2, _i, _i, _i], [301.0, _f, _f, _f, _f, _f, _f], _s)
+    psspy.bus_chng_4(6707, 0, [2, _i, _i, _i], [301.0, _f, _f, _f, _f, _f, _f], _s)
 
 
 def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, config: dict) -> bool:
@@ -55,14 +67,15 @@ def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, c
     if p <= 0:
         return False
 
-    pf = 0.9  # Check value, maybe change per generation type ?
+    pf = 0.94  # Check value, maybe change per generation type ?
     angle = math.acos(pf)
     m_base = machine.p_nom / pf  # do not take into account setpoint, only actual capacity [MW]
 
     p_min = 0
     p_max = machine.p_nom
 
-    q_max = m_base * math.sin(angle)
+    #q_max = m_base * math.sin(angle)
+    q_max = 9999
     q_min = -q_max
 
     try:
@@ -85,6 +98,7 @@ def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, c
         raise e
 
     return True
+
 
 
 def add_load(load: pd.Series, bus: pd.Series, id: int, in_service: bool):
@@ -114,10 +128,17 @@ def add_load_psse(bus_id: int, id: str, p_set: float, q_set: float, description:
     )
 
 
-def add_shunt_impedance(shunt_impedance: pd.Series, bus: pd.Series, id: int, in_service: bool):
-    # TODO find data
-    # TODO implement
-    pass
+def add_shunt_impedance(shunt_impedance: pd.Series, id: int):
+
+    int_shunt_bus = int(shunt_impedance.bus)
+    int_bl1_steps = int(shunt_impedance.bl1_steps)
+    int_bl2_steps = int(shunt_impedance.bl2_steps)
+
+    psspy.switched_shunt_data_5(
+        int_shunt_bus, str(id),
+        [int_bl1_steps, int_bl2_steps, _i, _i, _i, _i, _i, _i, 1, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i],
+        [float(-20.0), float(20.0), _f, _f, _f, _f, _f, _f, shunt_impedance.v_high, shunt_impedance.v_low, _f, _f], _s
+    )
 
 
 def add_branch(line: pd.Series, id: int):
@@ -130,12 +151,35 @@ def add_branch(line: pd.Series, id: int):
             str(id),
             [_i, _i, _i, _i, _i, _i],
             [line.r_pu, line.x_pu, line.b_pu, _f, _f, _f, _f, line.length, _f, _f, _f, _f],
-            [line.s_nom, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f],
+            [line.s_nom, line.s_nom2, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f],
             "",
         )
     except Exception as e:
         logger.info(line)
         raise e
+
+
+def remove_branch(remove_lines, remove_buses, remove_transformers):
+
+    for index, row in remove_lines.iterrows():
+        psspy.purgbrn(int(row['bus0']), int(row['bus1']), str(row['id']))
+
+    #for index, row in inactive_lines.iterrows():
+     #   psspy.branch_chng_3(
+      #      int(row['bus0']),
+      #      int(row['bus1']),
+     #       str(row['id']),
+      #      [0, _i, _i, _i, _i, _i],
+    #        [_f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f],
+     #       [_f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f], _s)
+
+    for index, row in remove_transformers.iterrows():
+        psspy.purgbrn(int(row['bus0']), int(row['bus1']), str(row['id']))
+
+    for index, row in remove_buses.iterrows():
+        psspy.bsysinit(1)
+        psspy.bsyso(1, int(row['bus']))
+        psspy.extr(1, 0, [0, 0])
 
 
 def add_transformer(transformer: pd.Series, id: int):
@@ -144,16 +188,77 @@ def add_transformer(transformer: pd.Series, id: int):
             int(transformer.bus0),
             int(transformer.bus1),
             str(id),
-            [_i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i],
-            [transformer.r_pu, transformer.x_pu, _f, _f, _f, _f, _f, _f, _f, _f, _f, transformer.g_pu, transformer.b_pu, _f, _f, _f, _f,
+            [_i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, 2, _i],
+            [transformer.r_pu, 0.12, 400.0, _f, _f, _f, _f, _f, _f, _f, _f, transformer.g_pu, transformer.b_pu, _f, _f, _f, _f,
              _f, _f, _f],
             [transformer.s_nom, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f],
             _s,
             _s,
         )
+
     except Exception as e:
         logger.info(transformer)
         raise e
+
+    psspy.two_winding_data_6(6643, 9411, r"""1""", [1, 6643, 1, 0, 0, 0, 33, 0, 6643, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    psspy.two_winding_data_6(6635, 9410, r"""1""", [1, 6635, 1, 0, 0, 0, 33, 0, 6635, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    psspy.two_winding_data_6(6636, 9410, r"""1""", [1, 6636, 1, 0, 0, 0, 33, 0, 6636, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #HEMSIL
+    psspy.two_winding_data_6(6714, 9015, r"""1""", [1, 6714, 1, 0, 0, 0, 33, 0, 6714, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #SAUDA
+    psspy.two_winding_data_6(6682, 9019, r"""1""", [1, 6682, 1, 0, 0, 0, 33, 0, 6682, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #FÅBERG
+    psspy.two_winding_data_6(6718, 9016, r"""1""", [1, 6718, 1, 0, 0, 0, 33, 0, 6718, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #OSLO
+    psspy.two_winding_data_6(6735, 9017, r"""1""", [1, 6735, 1, 0, 0, 0, 33, 0, 6735, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #TEGNEBY
+    psspy.two_winding_data_6(6739, 9018, r"""1""", [1, 6739, 1, 0, 0, 0, 33, 0, 6739, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #FJOTLAND
+    psspy.two_winding_data_6(6708, 9021, r"""1""", [1, 6708, 1, 0, 0, 0, 33, 0, 6708, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #LYSE
+    psspy.two_winding_data_6(6697, 9020, r"""1""", [1, 6697, 1, 0, 0, 0, 33, 0, 6697, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+    #Seitenoikea
+    psspy.two_winding_data_6(9101, 6903, r"""1""", [1, 9101, 1, 0, 0, 0, 33, 0, 9101, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+
+    #Nuoja
+    psspy.two_winding_data_6(9102, 6923, r"""1""", [1, 9102, 1, 0, 0, 0, 33, 0, 9102, 0, 0, 1, 0, 1, 2, 1],
+                             [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
+                              0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                    0.0, 0.0, 0.0, 0.0, 0.0], "", "")
+
 
 
 def add_link(link: pd.Series, bus0: pd.Series, bus1: pd.Series, config: dict):
@@ -199,6 +304,11 @@ def solve_newton_raphson() -> bool:
         1: 'Iteration limit exceeded',
         2: 'Blown up',
     }
+
+    # increase iteration limit
+    psspy.solution_parameters_5([_i, 500, _i, _i, 10, _i, _i, 20, 0],
+                                [_f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f,
+                                 _f])
 
     psspy.fnsl([0,0,0,1,1,1,99,0])  # with flat start
     n = psspy.iterat()
@@ -261,6 +371,16 @@ if __name__ == "__main__":
         .sort_values(["bidding_zone_in_config", "bidding_zone"], ascending=[False, True])\
         .reset_index()['bidding_zone']
 
+    # get a sorted list of regions for the area id:  in nordics first, sort the rest alphabetically
+    all_regions = pd.Series(buses["LnNamn"].unique())
+    region_in_config = all_regions.map(lambda country: country in snakemake.config["regions"])
+    all_regions = pd.concat([
+        all_regions.rename('LnNamn'),
+        region_in_config.rename('region_in_config')
+    ], axis=1) \
+        .sort_values(["region_in_config", "LnNamn"], ascending=[False, True]) \
+        .reset_index()['LnNamn']
+
     # find all buses with external link (only for visualization, 'outside' buses will be disabled)
     buses_with_external_links = set()
     external_links.apply(lambda external_link: buses_with_external_links.add(external_link.bus), axis=1)
@@ -285,8 +405,17 @@ if __name__ == "__main__":
 
         has_generators = len(generators[generators["bus"] == bus.name].index) > 0 or len(storage_units[storage_units["bus"] == bus.name].index) > 0
 
-        add_bus(bus, all_bidding_zones[all_bidding_zones == bus.bidding_zone].index[0] + 1, has_generators, snakemake.config)
+        try:
+            region_index = all_regions[all_regions == bus.LnNamn].index[0] + 1
+        except IndexError:
+            # region name not found, set region index to 0 or handle the error
+            region_index = 0
+        bidding_zone_index = all_bidding_zones[all_bidding_zones == bus.bidding_zone].index[0] + 1
+        add_bus(bus, bidding_zone_index, region_index, has_generators, snakemake.config)
         buses_in_psse.add(bus.name)
+
+        # add_bus(bus, all_bidding_zones[all_bidding_zones == bus.bidding_zone].index[0] + 1, has_generators, snakemake.config)
+        # buses_in_psse.add(bus.name)
 
         index = 1
         for _, generator in generators_bus.iterrows():
@@ -304,7 +433,7 @@ if __name__ == "__main__":
 
         index = 1
         for _, shunt_impedance in shunt_impedances_bus.iterrows():
-            add_shunt_impedance(shunt_impedance, bus, index, status)
+            add_shunt_impedance(shunt_impedance, index)
             index += 1
 
         index = 1
@@ -340,6 +469,14 @@ if __name__ == "__main__":
         indexes[transformer.bus0].append(index)
         indexes[transformer.bus1].append(index)
 
+    logger.info('Removing lines and buses')
+    remove_lines = pd.read_excel(snakemake.input.remove_lines)
+    #inactive_lines = pd.read_excel(snakemake.input.inactive_lines)
+    remove_buses = pd.read_excel(snakemake.input.remove_buses)
+    remove_transfomers = pd.read_excel(snakemake.input.remove_transformers)
+    remove_branch(remove_lines, remove_buses, remove_transfomers)
+
+
     logger.info('Adding links')
     # indexes are meant to find a 'free' id (for both buses) when connecting 2 buses
     indexes = {k: [] for k in buses.index.unique()}
@@ -356,6 +493,10 @@ if __name__ == "__main__":
     logger.info('Adding areas')
     for i, country in enumerate(all_bidding_zones, start=1):
         add_area(i, country)
+
+    logger.info('Adding regions')
+    for i, country in enumerate(all_regions, start=1):
+        add_region(i, country)
 
     logger.info('Disabling excluded buses')
     for _, bus in buses.iterrows():

@@ -1,0 +1,30 @@
+COM
+COM SUBSYSTEM description file entry created by PSS(R)E Config File Builder
+COM
+SUBSYSTEM 'ALL_BZ'
+   AREA 1
+   AREA 2
+   AREA 3
+   AREA 4
+   AREA 5
+   AREA 6
+   AREA 7
+   AREA 8
+   AREA 9
+   AREA 10
+   AREA 11
+END
+COM
+SUBSYSTEM 'RESERV'
+   BUS 6802
+   BUS 6929
+   BUS 6809
+   BUS 7061
+   BUS 6860
+   BUS 6668
+   BUS 6716
+   BUS 6705
+   BUS 6710
+   BUS 7003
+END
+END

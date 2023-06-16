@@ -8,7 +8,8 @@ rule build_and_validate_all:
     input:
         "database/"+RDIR+"nordics.sqlite",                                      # build_database
         "psse/"+RDIR+"nordics.sav",                                             # build_psse
-        "validation/"+RDIR+"installed_generation_capacity_per_country.xlsx",    # validate_database
+        "validation/"+RDIR+"installed_generation_capacity_per_country.xlsx",
+        "validation/"+RDIR+"balance.xlsx",                                      # validate_database
         "psse/"+RDIR+"nordics.sld",                                             # build_psse_slider
         "validation/"+RDIR+"psse_cross_border_flow.xlsx",                       # validate_psse
 
@@ -16,6 +17,10 @@ rule build_psse_network:
     name: "Build PSS/E"
     input:
         database="database/" + RDIR + "nordics.sqlite",
+        remove_lines="grid-change/remove_lines.xlsx",
+        #inactive_lines="manual-data/" + RDIR + "inactive-lines.xlsx",
+        remove_buses = "grid-change/remove-bus.xlsx",
+        remove_transformers = "grid-change/remove_transformers.xlsx",
     output:
         sav="psse/"+RDIR+"nordics.sav",
     log:
@@ -56,6 +61,16 @@ rule validate_database:
     script:
         "scripts/validate_database.py"
 
+rule merge_databases:
+    input:
+        bus_info_db_path="database/" + RDIR + "nordics.sqlite",
+        bus_location_db_path="example.db",
+    output:
+        "database/" + RDIR + "merged_db.sqlite"
+    shell:
+        "python merge_databases.py {input.bus_info_db_path} {input.bus_location_db_path} {output.merged_db_path}"
+
+
 rule validate_psse:
     name: "Validate PSS/E"
     input:
@@ -79,8 +94,6 @@ rule retrieve_installed_capacity:
 
 rule retrieve_actual_generation:
     name: "Retrieve actual generation"
-    input:
-        generation_sweden="data/"+RDIR+"actual_generation_sweden.xlsx",
     output:
         actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv"
     log:
@@ -111,10 +124,17 @@ rule build_database:
         name: "Build database"
         input:
             network="input/" + RDIR_INPUT + "elec.nc",
-            actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation.csv",
+            actual_generation="data/" + RDIR + "entsoe-transparency/actual_generation.xlsx",
             cross_border_flows="data/" + RDIR + "entsoe-transparency/cross_border_flow.csv",
             load = "data/" + RDIR + "entsoe-transparency/load.csv",
+            bus_names = "grid-change/bus-names.xlsx",
             manual_loads = "manual-data/" + RDIR + "loads.xlsx",
+            manual_shunts = "grid-change/shunts.xlsx",
+            manual_generators = "manual-data/" + RDIR + "generators.xlsx",
+            manual_buses = "grid-change/buses.xlsx",
+            manual_lines = "grid-change/lines.xlsx",
+            generators_case = "manual-data/" + RDIR + "generators_case.xlsx",
+            case_lines = "manual-data/" + RDIR + "case_lines.xlsx",
         output:
             database = "database/" + RDIR + "nordics.sqlite",
             database_raw = "database/" + RDIR + "nordics_raw.sqlite",
@@ -133,3 +153,12 @@ rule load_duration_curve:
             "logs/" + RDIR + "load_duration_curve.log"
         script:
             "scripts/load_duration_curve.py"
+
+# rule merge_buses_rule:
+#        input:
+#            nordics_db="database/" + RDIR + "nordics.sqlite",
+#            example_db="example.sqlite"
+#        output:
+#            merged_db="database/" + RDIR + "nordics.sqlite"
+#        run:
+#            merge_buses(nordics_db, example_db, output.merged_db)

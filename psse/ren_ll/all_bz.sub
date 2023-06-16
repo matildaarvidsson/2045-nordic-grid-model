@@ -1,0 +1,17 @@
+COM
+COM SUBSYSTEM description file entry created by PSS(R)E Config File Builder
+COM
+SUBSYSTEM 'ALL_BZ'
+   AREA 1
+   AREA 2
+   AREA 3
+   AREA 4
+   AREA 5
+   AREA 6
+   AREA 7
+   AREA 8
+   AREA 9
+   AREA 10
+   AREA 11
+END
+END

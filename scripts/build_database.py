@@ -422,8 +422,7 @@ def scale_generation_per_bidding_zone(n: Network, bz_generation: pd.DataFrame, g
     n.generators = n.generators.drop('6746 onwind', axis=0)
     n.generators = n.generators.drop('6747 onwind', axis=0)
     n.generators = n.generators.drop('6748 onwind', axis=0)
-    #n.generators = n.generators.drop('Loviisa-1', axis=0)
-    #n.generators = n.generators.drop('Loviisa-2 2', axis=0)
+
 
     all_generation_units = pd.concat([n.generators, n.storage_units])
 
@@ -446,6 +445,8 @@ def scale_generation_per_bidding_zone(n: Network, bz_generation: pd.DataFrame, g
 
     bz_generation = bz_generation.fillna(0)
     scale_factors = bz_generation.set_index('type').div(model_generation)
+
+    #scale_factors = (bz_generation / model_generation).fillna(0)
 
     n.generators["p_set"] = n.generators.apply(lambda unit: scale_generation_unit(unit, scale_factors), axis=1)
     n.storage_units["p_set"] = n.storage_units.apply(lambda unit: scale_generation_unit(unit, scale_factors), axis=1)
@@ -732,4 +733,4 @@ if __name__ == "__main__":
 
     # here you need to make sure that the database/INSERT_OWN/nordics is matching your case name
     logger.info('Adding region info')
-    merge_buses("database/ren_hh/nordics.sqlite", 'example.sqlite', "database/ren_hh/nordics.sqlite")
+    merge_buses("database/ff_ll/nordics.sqlite", 'example.sqlite', "database/ff_ll/nordics.sqlite")

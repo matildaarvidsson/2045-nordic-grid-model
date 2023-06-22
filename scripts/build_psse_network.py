@@ -57,8 +57,7 @@ def add_bus(bus: pd.Series, country_id: int, LnNamn_id: int, has_generation_unit
 
 
 def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, config: dict) -> bool:
-    # TODO r_source, x_source, r_tran, x_tran
-    # TODO machines at DC-buses
+
     if bus.carrier == 'DC':
         return False
 
@@ -67,14 +66,18 @@ def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, c
     if p <= 0:
         return False
 
-    pf = 0.94  # Check value, maybe change per generation type ?
+    pf = 0.94
     angle = math.acos(pf)
     m_base = machine.p_nom / pf  # do not take into account setpoint, only actual capacity [MW]
 
     p_min = 0
     p_max = machine.p_nom
 
-    #q_max = m_base * math.sin(angle)
+    p_set = machine.p_nom
+
+    #controlls the q-limits on the generators
+    #q_max = m_base * math.sin(angle)  #uncomment to control q based on power factor from p_nom
+    #q_max = p_set * math.tan(angle) #uncomment to control q based on power factor from p_set !!Do not forget to commet out q_max below
     q_max = 9999
     q_min = -q_max
 
@@ -102,7 +105,6 @@ def add_machine(machine: pd.Series, bus: pd.Series, id: int, in_service: bool, c
 
 
 def add_load(load: pd.Series, bus: pd.Series, id: int, in_service: bool):
-    # TODO: validate data
     try:
         add_load_psse(int(load.bus), str(id), load.p_set, load.q_set, in_service=in_service, scalable=True)
     except Exception as e:
@@ -133,17 +135,17 @@ def add_shunt_impedance(shunt_impedance: pd.Series, id: int):
     int_shunt_bus = int(shunt_impedance.bus)
     int_bl1_steps = int(shunt_impedance.bl1_steps)
     int_bl2_steps = int(shunt_impedance.bl2_steps)
+    float_bl1_mva = float(shunt_impedance.bl1_mva)
+    float_bl2_mva = float(shunt_impedance.bl2_mva)
 
     psspy.switched_shunt_data_5(
         int_shunt_bus, str(id),
         [int_bl1_steps, int_bl2_steps, _i, _i, _i, _i, _i, _i, 1, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i, _i],
-        [float(-20.0), float(20.0), _f, _f, _f, _f, _f, _f, shunt_impedance.v_high, shunt_impedance.v_low, _f, _f], _s
+        [float_bl1_mva, float_bl2_mva, _f, _f, _f, _f, _f, _f, shunt_impedance.v_high, shunt_impedance.v_low, _f, _f], _s
     )
 
 
 def add_branch(line: pd.Series, id: int):
-    # TODO long transmission line model, how does that work in PSS/E?
-    # TODO do the PU calculation here instead of in pypsa-eur
     try:
         psspy.branch_data_3(
             int(line.bus0),
@@ -161,21 +163,15 @@ def add_branch(line: pd.Series, id: int):
 
 def remove_branch(remove_lines, remove_buses, remove_transformers):
 
+    #removes lines defined in grid-change/remove_lines
     for index, row in remove_lines.iterrows():
         psspy.purgbrn(int(row['bus0']), int(row['bus1']), str(row['id']))
 
-    #for index, row in inactive_lines.iterrows():
-     #   psspy.branch_chng_3(
-      #      int(row['bus0']),
-      #      int(row['bus1']),
-     #       str(row['id']),
-      #      [0, _i, _i, _i, _i, _i],
-    #        [_f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f],
-     #       [_f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f, _f], _s)
-
+    # removes lines defined in grid-change/remove_transformers
     for index, row in remove_transformers.iterrows():
         psspy.purgbrn(int(row['bus0']), int(row['bus1']), str(row['id']))
 
+    # removes lines defined in grid-change/remove-bus
     for index, row in remove_buses.iterrows():
         psspy.bsysinit(1)
         psspy.bsyso(1, int(row['bus']))
@@ -183,6 +179,7 @@ def remove_branch(remove_lines, remove_buses, remove_transformers):
 
 
 def add_transformer(transformer: pd.Series, id: int):
+    #change per unit value here
     try:
         psspy.two_winding_data_6(
             int(transformer.bus0),
@@ -200,6 +197,7 @@ def add_transformer(transformer: pd.Series, id: int):
         logger.info(transformer)
         raise e
 
+    #added transfomers between the 400 kv and 301 kv grid
     psspy.two_winding_data_6(6643, 9411, r"""1""", [1, 6643, 1, 0, 0, 0, 33, 0, 6643, 0, 0, 1, 0, 1, 2, 1],
                              [0.0, 0.12, 400.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.1, 0.9, 1.1,
                               0.9, 0.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -489,7 +487,7 @@ if __name__ == "__main__":
         bus1 = buses.loc[link.bus1]
         add_link(link, bus0, bus1, snakemake.config)
 
-    # add countries as area; TODO (?): trade zones within countries -> manual work
+    # add countries as area;
     logger.info('Adding areas')
     for i, country in enumerate(all_bidding_zones, start=1):
         add_area(i, country)

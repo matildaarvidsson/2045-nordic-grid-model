@@ -68,7 +68,7 @@ More details on the configuration options are in the [PyPSA-Eur documentation](h
 Before first use, create a `config.yaml` by copying the DNV config example.
 
 ``` bash
-cp config.dnv.yaml config.yaml
+copy config.dnv.yaml config.yaml
 ```
 
 ## Usage
@@ -88,17 +88,16 @@ It is assumed that `git` and `conda` are already installed, as shown in the PyPS
 > **Note**
 > Instead of cloning the GitHub repository, it is also possible to open the model in the 'Grid models based on open sources - Documents' Team.
 
-As this is a private GitHub repository, request access to the GitHub first.
 ``` bash
 cd /some/path
-git clone https://github.com/niekbr/dnv-nordics-model.git
+git clone https://github.com/matildaarvidsson/2045-nordic-grid-model.git
 ```
 
 ### Install Python Dependencies
 Similar to PyPSA-Eur, create a conda environment, which automatically installs dependencies.
 
 ``` bash
-conda env create -f environment.yaml
+conda env create -f environment.yml
 conda activate dnv-nordics-model
 ```
 
